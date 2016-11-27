@@ -151,10 +151,10 @@ struct Bot{
 	fl marginWeight = 0.2f;
 
 	// Number of words that are considered common
-	int commonWordLimit = 5000;
+	int commonWordLimit = 1000;
 
 	// Prefer common words
-	fl commonWordWeight = 1.2f;
+	fl commonWordWeight = 0.9f;
 
 	// Number of words that are not considered rare
 	int rareWordLimit = 15000;
