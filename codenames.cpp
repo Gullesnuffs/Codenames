@@ -174,9 +174,9 @@ struct Bot{
 
 		// Check if word is a substring or a superstring of any of the words on the board
 		rep(i,0,boardWords.size()){
-			if(boardWords[i].second.find(word) != string::npos)
+			if(toLowerCase(boardWords[i].second).find(toLowerCase(word)) != string::npos)
 				return make_pair(-1000, -1);
-			if(word.find(boardWords[i].second) != string::npos)
+			if(toLowerCase(word).find(toLowerCase(boardWords[i].second)) != string::npos)
 				return make_pair(-1000, -1);
 		}
 
@@ -198,7 +198,7 @@ struct Bot{
 		int curCount=0;
 		if(debugPrint){
 			rep(i,0,v.size()){
-				cout << -v[i].first << "\t" << v[i].second.second << " ";
+				cout << setprecision(4) << fixed << -v[i].first << "\t" << v[i].second.second << " ";
 				switch(v[i].second.first){
 					case 'm': cout << "(My)" << endl; break;
 					case 'o': cout << "(Opponent)" << endl; break;
