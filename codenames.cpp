@@ -3,7 +3,7 @@ using namespace std;
 
 #define rep(i, a, b) for(int i = (a); i < int(b); ++i)
 #define rrep(i, a, b) for(int i = (a) - 1; i >= int(b); --i)
-#define trav(it, v) for(typeof((v).begin()) it = (v).begin(); it != (v).end(); ++it)
+#define trav(x, v) for(auto& x : v)
 #define all(v) (v).begin(), (v).end()
 #define what_is(x) cout << #x << " is " << x << endl;
 
@@ -36,35 +36,45 @@ struct SimilarityEngine{
 	map<string, int> popularity;
 
 	// Returns if successful
-	bool load(const char* fileName, int numberOfWords){
-		FILE* fin = fopen(fileName, "r");
-		if(fin == NULL)
+	bool load(const char* fileName) {
+		int dimension, numberOfWords;
+		ifstream fin(fileName, ios::binary);
+		fin.read((char*)&numberOfWords, sizeof numberOfWords);
+		fin.read((char*)&dimension, sizeof dimension);
+		if (!fin) {
+			cerr << "Failed to load " << fileName << endl;
 			return false;
-		char buffer[1<<16];
-		while(fscanf(fin, "%s", buffer) != EOF){
-			vector<double> v;
-			double length=0;
-			rep(i,0,300){
-				double x;
-				ignore = fscanf(fin, "%lf", &x);
-				v.push_back(x);
-				length += x*x;
-			}
-			length=sqrt(length);
-			rep(i,0,v.size()){
-				v[i] /= length;
-			}
-			vec[string(buffer)]=v;
-			popularity[string(buffer)]=vec.size();
-
-			// If numberOfWords is non-positive it is assumed that we should load all words
-			if(numberOfWords > 0){
-				if(vec.size() == (((10*vec.size())/numberOfWords)*numberOfWords)/10)
-					cout << ((100LL*((int)vec.size()))/numberOfWords) << " %" << endl;
-				if(vec.size() == numberOfWords)
-					break;
-			}
 		}
+		cerr << "Loading word2vec (" << numberOfWords << " words, " << dimension << " dimensions)..." << flush;
+
+		const int bufSize = 1 << 16;
+		char buf[bufSize];
+		string word;
+		vector<float> values(dimension);
+		vector<double> valuesd;
+		rep(i,0,numberOfWords) {
+			int len;
+			fin.read((char*)&len, sizeof len);
+			if (!fin) {
+				cerr << " failed at reading entry " << i << endl;
+				return false;
+			}
+			if (len > bufSize || len <= 0) {
+				cerr << " invalid length " << len << endl;
+				return false;
+			}
+			fin.read(buf, len);
+			fin.read((char*)values.data(), dimension * sizeof(float));
+			if (!fin) {
+				cerr << " failed at reading entry " << i << endl;
+				return false;
+			}
+			word.assign(buf, buf + len);
+			valuesd.assign(all(values));
+			vec[word] = move(valuesd);
+			popularity[word] = i + 1;
+		}
+		cerr << " done!" << endl;
 		return true;
 	}
 
@@ -332,8 +342,8 @@ string inputColor(){
 
 int main(){
 	SimilarityEngine engine;
-	engine.load("data.txt", 100000);
-	cout << "Finished loading!" << endl;
+	if (!engine.load("data.bin"))
+		return 1;
 	cout << "Type \"help\" for help" << endl;
 	cout << "My color (b/r): ";
 	string myColor = inputColor();
