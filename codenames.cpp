@@ -198,7 +198,7 @@ struct Bot{
 		int curCount=0;
 		if(debugPrint){
 			rep(i,0,v.size()){
-				cout << -v[i].first << "\t" << v[i].second.second << " ";
+				cout << setprecision(6) << fixed << -v[i].first << "\t" << v[i].second.second << " ";
 				switch(v[i].second.first){
 					case 'm': cout << "(My)" << endl; break;
 					case 'o': cout << "(Opponent)" << endl; break;
