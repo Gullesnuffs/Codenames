@@ -332,7 +332,7 @@ string inputColor(){
 
 int main(){
 	SimilarityEngine engine;
-	engine.load("data/glove.6B.300d.txt", 100000);
+	engine.load("data.txt", 100000);
 	cout << "Finished loading!" << endl;
 	cout << "Type \"help\" for help" << endl;
 	cout << "My color (b/r): ";
