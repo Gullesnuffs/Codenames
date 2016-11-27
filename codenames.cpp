@@ -289,6 +289,19 @@ struct Bot{
 		trav(w, assassinWords) addBoardWord('a', w);
 	}
 
+	/** Returns suffix on number such as 'th' for 5 or 'nd' for 2 */
+	string orderSuffix(int p) {
+		if(p % 10 == 1 && p % 100 != 11) {
+			return "st";
+		} else if(p % 10 == 2 && p % 100 != 12) {
+			return "nd";
+		} else if(p % 10 == 3 && p % 100 != 13) {
+			return "rd";
+		} else {
+			return "th";
+		}
+	}
+
 	pair<string, int> getBestWord(
 			const vector<string>& _myWords, const vector<string>& _opponentWords,
 			const vector<string>& _greyWords, const vector<string>& _assassinWords){
@@ -297,155 +310,196 @@ struct Bot{
 		greyWords = _greyWords;
 		assassinWords = _assassinWords;
 		createBoardWords();
-		vector<pair<fl, pair<int, const string*>>> v;
+		vector<pair<fl, pair<int, const string*>>> wordScores;
 		const string* bestWord=0;
 		int bestCount=-1;
 		fl bestScore=0;
 		vector<const string*> candidates = engine.getCommonWords(vocabularySize);
-		v.reserve(candidates.size());
-		for(const string* candidate : candidates){
-			pair<fl, int> res=getWordScore(*candidate, false);
-			v.push_back(make_pair(-res.first, make_pair(res.second, candidate)));
-			if(res.first > bestScore){
+		wordScores.reserve(candidates.size());
+		for (const string* candidate : candidates){
+			pair<fl, int> res = getWordScore(*candidate, false);
+			wordScores.push_back(make_pair(-res.first, make_pair(res.second, candidate)));
+
+			if (res.first > bestScore){
 				bestScore=res.first;
 				bestCount=res.second;
 				bestWord=candidate;
 			}
 		}
+
 		assert(bestWord);
-		sort(all(v));
+		sort(all(wordScores));
 		// Print how the score of the best word was computed
 		getWordScore(*bestWord, true);
 
 		// Print a list with the best clues
 		rep(i,0,20){
-			pair<fl, int> res = getWordScore(*v[i].second.second, false);
-			cout << (i+1) << "\t" << setprecision(3) << fixed << res.first << "\t" << *v[i].second.second << " " << res.second << endl;
+			pair<fl, int> res = getWordScore(*wordScores[i].second.second, false);
+			cout << (i+1) << "\t" << setprecision(3) << fixed << res.first << "\t" << *wordScores[i].second.second << " " << res.second << endl;
 		}
+
 		int p = engine.popularity.at(*bestWord);
 		cout << "The best clue found is " << *bestWord << " " << bestCount << endl;
-		cout << *bestWord << " is the " << p;
-		if(p % 10 == 1 && p % 100 != 11)
-			cout << "st";
-		else if(p % 10 == 2 && p % 100 != 12)
-			cout << "nd";
-		else if(p % 10 == 3 && p % 100 != 13)
-			cout << "rd";
-		else
-			cout << "th";
+		cout << *bestWord << " is the " << p << orderSuffix(p);
+		
 		cout << " most popular word" << endl;
 		return make_pair(*bestWord, bestCount);
 	}
 };
 
-string inputColor(){
-	string color;
-	cin >> color;
-	color = toLowerCase(color);
-	while(true){
-		if(color == "b" || color == "blue"){
-			color = "b";
-			break;
-		}
-		if(color == "r" || color == "red"){
-			color = "r";
-			break;
-		}
-		cin >> color;
-		color = toLowerCase(color);
-	}
-	return color;
-}
-
-int main(){
+class GameInterface {
 	SimilarityEngine engine;
-	if (!engine.load("data.bin"))
-		return 1;
-	cout << "Type \"help\" for help" << endl;
-	cout << "My color (b/r): ";
-	string myColor = inputColor();
-	Bot bot(engine);
+	Bot bot;
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
-	while(true){
-		string command1;
-		cin >> command1;
-		if (!cin) break;
-		command1 = toLowerCase(command1);
+	string myColor;
+
+	void commandReset() {
+		myWords.clear();
+		opponentWords.clear();
+		greyWords.clear();
+		assassinWords.clear();
+	}
+
+	void commandSuggestWord() {
+		cout << "Thinking..." << endl;
+		pair<string, int> best = bot.getBestWord(myWords, opponentWords, greyWords, assassinWords);
+	}
+
+	void commandHelp() {
+		cout << "The following commands are available:" << endl << endl;
+		cout << "r <word>\t-\tAdd a red spy to the board" << endl;
+		cout << "b <word>\t-\tAdd a blue spy to the board" << endl;
+		cout << "c <word>\t-\tAdd a civilian to the board" << endl;
+		cout << "a <word>\t-\tAdd an assassin to the board" << endl;
+		cout << "- <word>\t-\tRemove a word from the board" << endl;
+		cout << "go\t\t-\tReceive clues" << endl;
+		cout << "reset\t\t-\tClear the board" << endl;
+		cout << "board\t\t-\tPrints the words currently on the board" << endl;
+	}
+
+	void commandBoard() {
+		cout << "My spies:";
+		for(auto word : myWords){
+			cout << " " << word;
+		}
+		cout << endl;
+		cout << "Opponent spies:";
+		for(auto word : opponentWords){
+			cout << " " << word;
+		}
+		cout << endl;
+		cout << "Civilians:";
+		for(auto word : greyWords){
+			cout << " " << word;
+		}
+		cout << endl;
+		cout << "Assassins:";
+		for(auto word : assassinWords){
+			cout << " " << word;
+		}
+		cout << endl;
+	}
+
+	void commandModifyBoard(string command) {
 		vector<string>* v = NULL;
-		if(command1 == myColor)
-			v=&myWords;
-		else if(command1 == "b" || command1 == "r")
-			v=&opponentWords;
-		else if(command1 == "g" || command1 == "c")
-			v=&greyWords;
-		else if(command1 == "a")
-			v=&assassinWords;
-		else if(command1 == "-"){
+		if(command == myColor) {
+			v = &myWords;
+		} else if(command == "b" || command == "r") {
+			v = &opponentWords;
+		} else if(command == "g" || command == "c") {
+			v = &greyWords;
+		} else if(command == "a") {
+			v = &assassinWords;
+		} else if(command == "-"){
 			string word;
 			cin >> word;
-			word=toLowerCase(word);
+			word = toLowerCase(word);
 			eraseFromVector(word, &myWords);
 			eraseFromVector(word, &opponentWords);
 			eraseFromVector(word, &greyWords);
 			eraseFromVector(word, &assassinWords);
 		}
+
 		if(v != NULL){
 			string word;
 			cin >> word;
 			word=toLowerCase(word);
 			if(engine.popularity.count(word)){
 				v->push_back(word);
-			}
-			else{
+			} else {
 				cout << word << " was not found in the dictionary" << endl;
 			}
 		}
-		if(command1 == "play" || command1 == "go"){
-			cout << "Thinking..." << endl;
-			pair<string, int> best = bot.getBestWord(myWords, opponentWords, greyWords, assassinWords);
-		}
-		if(command1 == "quit" || command1 == "exit") {
-			break;
-		}
-		if(command1 == "reset"){
-			myWords.clear();
-			opponentWords.clear();
-			greyWords.clear();
-			assassinWords.clear();
-		}
-		if(command1 == "help" || command1 == "\"help\""){
-			cout << "The following commands are available:" << endl << endl;
-			cout << "r <word>\t-\tAdd a red spy to the board" << endl;
-			cout << "b <word>\t-\tAdd a blue spy to the board" << endl;
-			cout << "c <word>\t-\tAdd a civilian to the board" << endl;
-			cout << "a <word>\t-\tAdd an assassin to the board" << endl;
-			cout << "- <word>\t-\tRemove a word from the board" << endl;
-			cout << "go\t\t-\tReceive clues" << endl;
-			cout << "reset\t\t-\tClear the board" << endl;
-			cout << "board\t\t-\tPrints the words currently on the board" << endl;
-		}
-		if(command1 == "board"){
-			cout << "My spies:";
-			for(auto word : myWords){
-				cout << " " << word;
+	}
+
+	string inputColor(){
+		string color;
+		cin >> color;
+		color = toLowerCase(color);
+		while(true){
+			if(color == "b" || color == "blue"){
+				color = "b";
+				break;
 			}
-			cout << endl;
-			cout << "Opponent spies:";
-			for(auto word : opponentWords){
-				cout << " " << word;
+			if(color == "r" || color == "red"){
+				color = "r";
+				break;
 			}
-			cout << endl;
-			cout << "Civilians:";
-			for(auto word : greyWords){
-				cout << " " << word;
+			cin >> color;
+			color = toLowerCase(color);
+		}
+		return color;
+	}
+
+public:
+	GameInterface () : bot(engine) {
+	}
+	
+	void run() {
+		if (!engine.load("data.bin")) {
+			cerr << "Failed to load data.bin" << endl;
+			return;
+		}
+
+		cout << "Type \"help\" for help" << endl;
+		cout << "My color (b/r): ";
+		myColor = inputColor();
+		
+		while(true){
+			string command1;
+			cin >> command1;
+			if (!cin) break;
+			command1 = toLowerCase(command1);
+
+			if (command1.size() == 1 && string("rgbac").find(command1) != string::npos) {
+				commandModifyBoard(command1);
 			}
-			cout << endl;
-			cout << "Assassins:";
-			for(auto word : assassinWords){
-				cout << " " << word;
+
+			if(command1 == "play" || command1 == "go"){
+				commandSuggestWord();
 			}
-			cout << endl;
+
+			if(command1 == "quit" || command1 == "exit") {
+				break;
+			}
+
+			if(command1 == "reset"){
+				commandReset();
+			}
+
+			if(command1 == "help" || command1 == "\"help\""){
+				commandHelp();
+			}
+
+			if(command1 == "board"){
+				commandBoard();
+			}
 		}
 	}
+};
+
+int main(){
+	GameInterface interface;
+	interface.run();
 	return 0;
 }
