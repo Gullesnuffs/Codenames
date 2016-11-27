@@ -145,7 +145,7 @@ struct Bot{
 	double weightOpponent = -1.5;
 	// How bad is it if there is a grey word with high similarity
 	double weightGrey = -0.2;
-	
+
 	// How important is it that the last good word has greater
 	// similarity than the next bad word
 	double marginWeight = 0.2;
@@ -274,8 +274,8 @@ struct Bot{
 		rep(i,0,assassinWords.size())
 			boardWords.push_back(make_pair('a', assassinWords[i]));
 	}
-	
-	pair<string, int> getBestWord(SimilarityEngine& engine, vector<string> _myWords, vector<string> _opponentWords, 
+
+	pair<string, int> getBestWord(SimilarityEngine& engine, vector<string> _myWords, vector<string> _opponentWords,
 			vector<string> _greyWords, vector<string> _assassinWords){
 		myWords = _myWords;
 		opponentWords = _opponentWords;
@@ -352,6 +352,7 @@ int main(){
 	while(true){
 		string command1;
 		cin >> command1;
+		if (!cin) break;
 		command1 = toLowerCase(command1);
 		vector<string>* v = NULL;
 		if(command1 == myColor)
@@ -385,6 +386,9 @@ int main(){
 		if(command1 == "play" || command1 == "go"){
 			cout << "Thinking..." << endl;
 			pair<string, int> best = bot.getBestWord(engine, myWords, opponentWords, greyWords, assassinWords);
+		}
+		if(command1 == "quit" || command1 == "exit") {
+			break;
 		}
 		if(command1 == "reset"){
 			myWords.clear();
@@ -426,4 +430,5 @@ int main(){
 			cout << endl;
 		}
 	}
+	return 0;
 }
