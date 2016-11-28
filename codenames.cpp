@@ -14,11 +14,20 @@ typedef vector<int> vi;
 typedef vector<pii> vpi;
 
 void eraseFromVector(string word, vector<string> &v) {
-	rep(i, 0, v.size()) if (v[i] == word) v.erase(v.begin() + i);
+	rep(i, 0, v.size()) {
+		if (v[i] == word) {
+			v.erase(v.begin() + i);
+			i--;
+		}
+	}
 }
 
 string toLowerCase(string s) {
-	rep(i, 0, s.size()) if (s[i] >= 'A' && s[i] <= 'Z') s[i] = (char)(s[i] + 'a' - 'A');
+	rep(i, 0, s.size()) {
+		if ('A' <= s[i] && s[i] <= 'Z') {
+			s[i] = (char)tolower(s[i]);
+		}
+	}
 	return s;
 }
 
@@ -40,8 +49,8 @@ struct SimilarityEngine {
 			cerr << "Failed to load " << fileName << endl;
 			return false;
 		}
-		cerr << "Loading word2vec (" << numberOfWords << " words, " << dimension
-			 << " dimensions)..." << flush;
+		cerr << "Loading word2vec (" << numberOfWords << " words, "
+			 << dimension << " dimensions)..." << flush;
 
 		const int bufSize = 1 << 16;
 		char buf[bufSize];
@@ -77,9 +86,10 @@ struct SimilarityEngine {
 	vector<const string *> getCommonWords(int vocabularySize) {
 		vector<const string *> ret;
 		ret.reserve(vocabularySize);
-		for (const auto &entry : popularity)
+		for (const auto &entry : popularity) {
 			if (entry.second < vocabularySize)
 				ret.push_back(&entry.first);
+		}
 		return ret;
 	}
 
@@ -100,6 +110,10 @@ struct SimilarityEngine {
 		return vec.at(s);
 	}
 
+	bool wordExists(const string &word) {
+		return popularity.count(word) > 0;
+	}
+
 	vector<pair<fl, string>> similarWords(string s) {
 		if (!vec.count(s)) {
 			cout << s << " does not occur in the corpus" << endl;
@@ -111,7 +125,9 @@ struct SimilarityEngine {
 		}
 		sort(all(ret));
 		vector<pair<fl, string>> res;
-		rep(i, 0, 10) res.push_back(make_pair(-ret[i].first, ret[i].second));
+		rep(i, 0, 10) {
+			res.push_back(make_pair(-ret[i].first, ret[i].second));
+		}
 		return res;
 	}
 };
@@ -185,6 +201,14 @@ struct Bot {
 		return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
 	}
 
+	bool forbiddenWord(const string &word) {
+		for (const BoardWord &w : boardWords) {
+			if (superOrSubstring(w.word, word))
+				return true;
+		}
+		return false;
+	}
+
 	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
 		if (debugPrint)
 			cout << "Printing statistics for \"" << word << "\"" << endl;
@@ -200,15 +224,10 @@ struct Bot {
 				sim += marginOpponentWords;
 			if (boardWords[i].type == 'a')
 				sim += marginAssassins;
-			v.push_back(make_pair(-sim, &boardWords[i]));
+			v.push_back({-sim, &boardWords[i]});
 		}
 		sort(all(v), [&](const Pa &a, const Pa &b) { return a.first < b.first; });
-		fl bestScore = 0;
-		int bestCount = 0;
-		fl curScore = 0;
-		fl lastGood = 0;
-		fl baseScore = 0;
-		int curCount = 0;
+
 		if (debugPrint) {
 			rep(i, 0, v.size()) {
 				cout << setprecision(6) << fixed << -v[i].first << "\t" << v[i].second->word << " ";
@@ -233,6 +252,7 @@ struct Bot {
 		}
 
 		// Compute a fuzzy score
+		fl baseScore = 0;
 		rep(i, 0, v.size()) {
 			char type = v[i].second->type;
 			fl weight;
@@ -250,6 +270,9 @@ struct Bot {
 			baseScore += contribution;
 		}
 
+		int bestCount = 0;
+		fl curScore = 0, bestScore = 0, lastGood = 0;
+		int curCount = 0;
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
@@ -291,18 +314,16 @@ struct Bot {
 			bestScore *= rareWordWeight;
 		return make_pair(bestScore, bestCount);
 	}
-	
-	pair<fl, int> getWordScore(const string &word, bool debugPrint,
-								  const vector<string> &_myWords,
-								  const vector<string> &_opponentWords,
-								  const vector<string> &_greyWords,
-								  const vector<string> &_assassinWords) {
+
+	void setWords(const vector<string> &_myWords,
+				  const vector<string> &_opponentWords,
+				  const vector<string> &_greyWords,
+				  const vector<string> &_assassinWords) {
 		myWords = _myWords;
 		opponentWords = _opponentWords;
 		greyWords = _greyWords;
 		assassinWords = _assassinWords;
 		createBoardWords();
-		return getWordScore(word, debugPrint);
 	}
 
 	void createBoardWords() {
@@ -326,58 +347,43 @@ struct Bot {
 		}
 	}
 
-	pair<string, int> getBestWord(const vector<string> &_myWords,
-								  const vector<string> &_opponentWords,
-								  const vector<string> &_greyWords,
-								  const vector<string> &_assassinWords) {
-		myWords = _myWords;
-		opponentWords = _opponentWords;
-		greyWords = _greyWords;
-		assassinWords = _assassinWords;
-		createBoardWords();
-		vector<pair<fl, pair<int, const string *>>> wordScores;
-		vector<pair<int, const string *> > topList;
+	pair<string, int> getBestWord() {
 		vector<const string *> candidates = engine.getCommonWords(vocabularySize);
-		wordScores.reserve(candidates.size());
+		priority_queue<pair<pair<fl, int>, const string *>> pq;
 		for (const string *candidate : candidates) {
 			pair<fl, int> res = getWordScore(*candidate, false);
-			wordScores.push_back(make_pair(-res.first, make_pair(res.second, candidate)));
+			pq.push({{res.first, -res.second}, candidate});
 		}
 
-		sort(all(wordScores));
-		
-		// Check if the best words are substrings or superstrings of any of the
-		// words on the board
-		for(int i=0; i < (int)wordScores.size() && (int)topList.size() < 20; ++i){
-			bool ok = 1;
-			rep(j, 0, boardWords.size()) {
-				if (superOrSubstring(boardWords[j].word, *wordScores[i].second.second)) {
-					ok = 0;
-					break;
-				}
-			}
-			if(ok)
-				topList.push_back(wordScores[i].second);
+		vector<pair<pair<fl, int>, const string *>> topList;
+
+		// Extract the top 20 words that are not forbidden by the rules
+		while (topList.size() < 20 && !pq.empty()) {
+			auto pa = pq.top();
+			pq.pop();
+			if (!forbiddenWord(*pa.second))
+				topList.push_back(pa);
 		}
-		const string *bestWord=topList[0].second;
-		int bestCount=topList[0].first;
-		assert(bestWord);
+
 		// Print how the score of the best word was computed
-		getWordScore(*bestWord, true);
+		assert(!topList.empty());
+		const string &bestWord = *topList[0].second;
+		int bestCount = -topList[0].first.second;
+		getWordScore(bestWord, true);
 
 		// Print a list with the best clues
 		rep(i, 0, (int)topList.size()) {
-			pair<fl, int> res = getWordScore(*topList[i].second, false);
-			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first << "\t"
-				 << *topList[i].second << " " << res.second << endl;
+			auto res = topList[i];
+			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first.first << "\t"
+				 << *res.second << " " << -res.first.second << endl;
 		}
 
-		int p = engine.popularity.at(*bestWord);
-		cout << "The best clue found is " << *bestWord << " " << bestCount << endl;
-		cout << *bestWord << " is the " << p << orderSuffix(p);
+		int p = engine.popularity.at(bestWord);
+		cout << "The best clue found is " << bestWord << " " << bestCount << endl;
+		cout << bestWord << " is the " << p << orderSuffix(p);
 
 		cout << " most popular word" << endl;
-		return make_pair(*bestWord, bestCount);
+		return make_pair(bestWord, bestCount);
 	}
 };
 
@@ -392,11 +398,12 @@ class GameInterface {
 		opponentWords.clear();
 		greyWords.clear();
 		assassinWords.clear();
+		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
 	}
 
 	void commandSuggestWord() {
 		cout << "Thinking..." << endl;
-		pair<string, int> best = bot.getBestWord(myWords, opponentWords, greyWords, assassinWords);
+		bot.getBestWord();
 	}
 
 	void commandHelp() {
@@ -435,7 +442,7 @@ class GameInterface {
 		cout << endl;
 	}
 
-	void commandModifyBoard(string command) {
+	void commandModifyBoard(const string &command) {
 		vector<string> *v = NULL;
 		if (command == myColor) {
 			v = &myWords;
@@ -459,23 +466,24 @@ class GameInterface {
 			string word;
 			cin >> word;
 			word = toLowerCase(word);
-			if (engine.popularity.count(word)) {
+			if (engine.wordExists(word)) {
 				v->push_back(word);
 			} else {
 				cout << word << " was not found in the dictionary" << endl;
 			}
 		}
+		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
 	}
 
 	void commandScore() {
 		string word;
 		cin >> word;
 		word = toLowerCase(word);
-		if (!engine.popularity.count(word)) {
+		if (!engine.wordExists(word)) {
 			cout << word << " was not found in the dictionary" << endl;
 			return;
 		}
-		pair<fl, int> res = bot.getWordScore(word, true, myWords, opponentWords, greyWords, assassinWords);
+		pair<fl, int> res = bot.getWordScore(word, true);
 		cout << word << " " << res.second << " has score " << res.first << endl;
 	}
 
@@ -512,37 +520,31 @@ class GameInterface {
 		myColor = inputColor();
 
 		while (true) {
-			string command1;
-			cin >> command1;
+			string command;
+			cin >> command;
 			if (!cin)
 				break;
-			command1 = toLowerCase(command1);
+			command = toLowerCase(command);
 
-			if (command1.size() == 1 && string("rgbac-").find(command1) != string::npos) {
-				commandModifyBoard(command1);
+			if (command.size() == 1 && string("rgbac-").find(command) != string::npos) {
+				commandModifyBoard(command);
 			}
-
-			if (command1 == "play" || command1 == "go") {
+			else if (command == "play" || command == "go") {
 				commandSuggestWord();
 			}
-
-			if (command1 == "quit" || command1 == "exit") {
+			else if (command == "quit" || command == "exit") {
 				break;
 			}
-
-			if (command1 == "reset") {
+			else if (command == "reset") {
 				commandReset();
 			}
-
-			if (command1 == "help" || command1 == "\"help\"") {
+			else if (command == "help" || command == "\"help\"") {
 				commandHelp();
 			}
-
-			if (command1 == "board") {
+			else if (command == "board") {
 				commandBoard();
 			}
-
-			if(command1 == "score") {
+			else if (command == "score") {
 				commandScore();
 			}
 		}
