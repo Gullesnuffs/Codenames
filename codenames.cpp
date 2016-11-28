@@ -13,8 +13,8 @@ typedef pair<int, int> pii;
 typedef vector<int> vi;
 typedef vector<pii> vpi;
 
-void eraseFromVector(string word, vector<string> *v) {
-	rep(i, 0, v->size()) if ((*v)[i] == word) v->erase(v->begin() + i);
+void eraseFromVector(string word, vector<string> &v) {
+	rep(i, 0, v.size()) if (v[i] == word) v.erase(v.begin() + i);
 }
 
 string toLowerCase(string s) {
@@ -136,6 +136,7 @@ struct Bot {
 
 	// How bad is it if there is an opponent word with high similarity
 	fl weightOpponent = -1.5f;
+
 	// How bad is it if there is a grey word with high similarity
 	fl weightGrey = -0.2f;
 
@@ -166,11 +167,17 @@ struct Bot {
 	struct BoardWord {
 		char type;
 		string word;
-		vector<fl> vec;
 	};
 	vector<BoardWord> boardWords;
 	void addBoardWord(char type, const string &word) {
-		boardWords.push_back({type, word, engine.getVec(word)});
+		boardWords.push_back({type, word});
+	}
+
+	/** True if a is a super or substring of b or vice versa */
+	bool superOrSubstring(const string &a, const string &b) {
+		auto lowerA = toLowerCase(a);
+		auto lowerB = toLowerCase(b);
+		return a.find(b) != string::npos || b.find(a) != string::npos;
 	}
 
 	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
@@ -180,19 +187,16 @@ struct Bot {
 		// Check if word is a substring or a superstring of any of the
 		// words on the board
 		rep(i, 0, boardWords.size()) {
-			if (toLowerCase(boardWords[i].word).find(toLowerCase(word)) != string::npos)
+			if (superOrSubstring(boardWords[i].word, word)) {
 				return make_pair(-1000, -1);
-			if (toLowerCase(word).find(toLowerCase(boardWords[i].word)) != string::npos)
-				return make_pair(-1000, -1);
+			}
 		}
-
-		const vector<fl> &wordVec = engine.getVec(word);
 
 		typedef pair<fl, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
 		rep(i, 0, boardWords.size()) {
-			fl sim = engine.similarity(boardWords[i].vec, wordVec);
+			fl sim = engine.similarity(boardWords[i].word, word);
 			if (boardWords[i].type == 'o')
 				sim += marginOpponentWords;
 			if (boardWords[i].type == 'a')
@@ -424,10 +428,10 @@ class GameInterface {
 			string word;
 			cin >> word;
 			word = toLowerCase(word);
-			eraseFromVector(word, &myWords);
-			eraseFromVector(word, &opponentWords);
-			eraseFromVector(word, &greyWords);
-			eraseFromVector(word, &assassinWords);
+			eraseFromVector(word, myWords);
+			eraseFromVector(word, opponentWords);
+			eraseFromVector(word, greyWords);
+			eraseFromVector(word, assassinWords);
 		}
 
 		if (v != NULL) {
@@ -481,7 +485,7 @@ class GameInterface {
 				break;
 			command1 = toLowerCase(command1);
 
-			if (command1.size() == 1 && string("rgbac").find(command1) != string::npos) {
+			if (command1.size() == 1 && string("rgbac-").find(command1) != string::npos) {
 				commandModifyBoard(command1);
 			}
 
