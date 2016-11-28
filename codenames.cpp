@@ -167,10 +167,15 @@ struct Bot {
 	struct BoardWord {
 		char type;
 		string word;
+		vector<fl> vec;
 	};
 	vector<BoardWord> boardWords;
 	void addBoardWord(char type, const string &word) {
-		boardWords.push_back({type, word});
+		boardWords.push_back({
+			type,
+			word,
+			engine.getVec(word)
+		});
 	}
 
 	/** True if a is a super or substring of b or vice versa */
@@ -184,11 +189,13 @@ struct Bot {
 		if (debugPrint)
 			cout << "Printing statistics for \"" << word << "\"" << endl;
 
+		const vector<fl> &wordVec = engine.getVec(word);
+
 		typedef pair<fl, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
 		rep(i, 0, boardWords.size()) {
-			fl sim = engine.similarity(boardWords[i].word, word);
+			fl sim = engine.similarity(boardWords[i].vec, wordVec);
 			if (boardWords[i].type == 'o')
 				sim += marginOpponentWords;
 			if (boardWords[i].type == 'a')
