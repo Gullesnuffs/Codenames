@@ -177,20 +177,12 @@ struct Bot {
 	bool superOrSubstring(const string &a, const string &b) {
 		auto lowerA = toLowerCase(a);
 		auto lowerB = toLowerCase(b);
-		return a.find(b) != string::npos || b.find(a) != string::npos;
+		return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
 	}
 
 	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
 		if (debugPrint)
 			cout << "Printing statistics for \"" << word << "\"" << endl;
-
-		// Check if word is a substring or a superstring of any of the
-		// words on the board
-		rep(i, 0, boardWords.size()) {
-			if (superOrSubstring(boardWords[i].word, word)) {
-				return make_pair(-1000, -1);
-			}
-		}
 
 		typedef pair<fl, BoardWord *> Pa;
 		static vector<Pa> v;
@@ -324,32 +316,40 @@ struct Bot {
 		assassinWords = _assassinWords;
 		createBoardWords();
 		vector<pair<fl, pair<int, const string *>>> wordScores;
-		const string *bestWord = 0;
-		int bestCount = -1;
-		fl bestScore = 0;
+		vector<pair<int, const string *> > topList;
 		vector<const string *> candidates = engine.getCommonWords(vocabularySize);
 		wordScores.reserve(candidates.size());
 		for (const string *candidate : candidates) {
 			pair<fl, int> res = getWordScore(*candidate, false);
 			wordScores.push_back(make_pair(-res.first, make_pair(res.second, candidate)));
-
-			if (res.first > bestScore) {
-				bestScore = res.first;
-				bestCount = res.second;
-				bestWord = candidate;
-			}
 		}
 
-		assert(bestWord);
 		sort(all(wordScores));
+		
+		// Check if the best words are substrings or superstrings of any of the
+		// words on the board
+		for(int i=0; i < (int)wordScores.size() && (int)topList.size() < 20; ++i){
+			bool ok = 1;
+			rep(j, 0, boardWords.size()) {
+				if (superOrSubstring(boardWords[j].word, *wordScores[i].second.second)) {
+					ok = 0;
+					break;
+				}
+			}
+			if(ok)
+				topList.push_back(wordScores[i].second);
+		}
+		const string *bestWord=topList[0].second;
+		int bestCount=topList[0].first;
+		assert(bestWord);
 		// Print how the score of the best word was computed
 		getWordScore(*bestWord, true);
 
 		// Print a list with the best clues
-		rep(i, 0, 20) {
-			pair<fl, int> res = getWordScore(*wordScores[i].second.second, false);
+		rep(i, 0, (int)topList.size()) {
+			pair<fl, int> res = getWordScore(*topList[i].second, false);
 			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first << "\t"
-				 << *wordScores[i].second.second << " " << res.second << endl;
+				 << *topList[i].second << " " << res.second << endl;
 		}
 
 		int p = engine.popularity.at(*bestWord);
