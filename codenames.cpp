@@ -417,6 +417,7 @@ class GameInterface {
 		cout << "reset\t\t-\tClear the board" << endl;
 		cout << "board\t\t-\tPrints the words currently on the board" << endl;
 		cout << "score <word>\t-\tCompute how good a given clue would be" << endl;
+		cout << "quit\t\t-\tTerminates the program" << endl;
 	}
 
 	void commandBoard() {
@@ -546,6 +547,9 @@ class GameInterface {
 			}
 			else if (command == "score") {
 				commandScore();
+			}
+			else {
+				cout << "Unknown command \"" << command << "\"" << endl;
 			}
 		}
 	}
