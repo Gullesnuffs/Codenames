@@ -291,6 +291,19 @@ struct Bot {
 			bestScore *= rareWordWeight;
 		return make_pair(bestScore, bestCount);
 	}
+	
+	pair<fl, int> getWordScore(const string &word, bool debugPrint,
+								  const vector<string> &_myWords,
+								  const vector<string> &_opponentWords,
+								  const vector<string> &_greyWords,
+								  const vector<string> &_assassinWords) {
+		myWords = _myWords;
+		opponentWords = _opponentWords;
+		greyWords = _greyWords;
+		assassinWords = _assassinWords;
+		createBoardWords();
+		return getWordScore(word, debugPrint);
+	}
 
 	void createBoardWords() {
 		boardWords.clear();
@@ -396,6 +409,7 @@ class GameInterface {
 		cout << "go\t\t-\tReceive clues" << endl;
 		cout << "reset\t\t-\tClear the board" << endl;
 		cout << "board\t\t-\tPrints the words currently on the board" << endl;
+		cout << "score <word>\t-\tCompute how good a given clue would be" << endl;
 	}
 
 	void commandBoard() {
@@ -451,6 +465,18 @@ class GameInterface {
 				cout << word << " was not found in the dictionary" << endl;
 			}
 		}
+	}
+
+	void commandScore() {
+		string word;
+		cin >> word;
+		word = toLowerCase(word);
+		if (!engine.popularity.count(word)) {
+			cout << word << " was not found in the dictionary" << endl;
+			return;
+		}
+		pair<fl, int> res = bot.getWordScore(word, true, myWords, opponentWords, greyWords, assassinWords);
+		cout << word << " " << res.second << " has score " << res.first << endl;
 	}
 
 	string inputColor() {
@@ -514,6 +540,10 @@ class GameInterface {
 
 			if (command1 == "board") {
 				commandBoard();
+			}
+
+			if(command1 == "score") {
+				commandScore();
 			}
 		}
 	}
