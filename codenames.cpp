@@ -39,7 +39,7 @@ struct SimilarityEngine {
 	map<string, vector<fl>> vec;
 	map<string, int> popularity;
 
-	// Returns if successful
+	// Returns true if successful
 	bool load(const char *fileName) {
 		int dimension, numberOfWords;
 		ifstream fin(fileName, ios::binary);
