@@ -142,7 +142,7 @@ struct Bot {
 	fl fuzzyWeightAssassin = -1.0f;
 	fl fuzzyWeightOpponent = -0.5f;
 	fl fuzzyWeightMy = 0.5f;
-	fl fuzzyWeightGrey = -0.1f;
+	fl fuzzyWeightGrey = -0.2f;
 	fl fuzzyExponent = 15;
 	fl fuzzyOffset = 0.3f;
 
@@ -154,7 +154,7 @@ struct Bot {
 	fl weightOpponent = -1.5f;
 
 	// How bad is it if there is a grey word with high similarity
-	fl weightGrey = -0.2f;
+	fl weightGrey = -0.4f;
 
 	// How important is it that the last good word has greater
 	// similarity than the next bad word
