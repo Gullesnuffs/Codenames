@@ -23,6 +23,9 @@ typedef pair<int, int> pii;
 typedef vector<int> vi;
 typedef vector<pii> vpi;
 
+/** Represents a single word or phrase in a similarity engine */
+enum wordID : int {};
+
 void eraseFromVector(string word, vector<string> &v) {
 	rep(i, 0, v.size()) {
 		if (v[i] == word) {
@@ -46,10 +49,25 @@ fl sigmoid(fl x) {
 }
 
 struct SimilarityEngine {
-	map<string, vector<fl>> vec;
-	map<string, int> popularity;
+private:
+	map<string, wordID> word2id;
+	vector<vector<fl>> words;
+	vector<string> wordsStrings;
 
-	// Returns true if successful
+	/** Similarity between two word vectors.
+	 * Implemented as an inner product.
+	 */
+	fl similarity(const vector<fl> &v1, const vector<fl> &v2) {
+		fl ret = 0;
+		int dim = (int)v1.size();
+		rep(i, 0, dim) {
+			ret += v1[i] * v2[i];
+		}
+		return ret;
+	}
+
+public:
+	/** Returns true if successful */
 	bool load(const char *fileName) {
 		int dimension, numberOfWords;
 		ifstream fin(fileName, ios::binary);
@@ -67,6 +85,8 @@ struct SimilarityEngine {
 		string word;
 		vector<float> values(dimension);
 		vector<fl> valuesd;
+		words.resize(numberOfWords);
+		wordsStrings.resize(numberOfWords);
 		rep(i, 0, numberOfWords) {
 			int len;
 			fin.read((char *)&len, sizeof len);
@@ -86,52 +106,62 @@ struct SimilarityEngine {
 			}
 			word.assign(buf, buf + len);
 			valuesd.assign(all(values));
-			vec[word] = move(valuesd);
-			popularity[word] = i + 1;
+			words[i] = move(valuesd);
+			wordsStrings[i] = word;
+			word2id[word] = wordID(i);
 		}
 		cerr << " done!" << endl;
 		return true;
 	}
 
-	vector<const string *> getCommonWords(int vocabularySize) {
-		vector<const string *> ret;
+	/** Top N most popular words */
+	vector<wordID> getCommonWords(int vocabularySize) {
+		vector<wordID> ret;
+		vocabularySize = min(vocabularySize, (int)words.size());
 		ret.reserve(vocabularySize);
-		for (const auto &entry : popularity) {
-			if (entry.second < vocabularySize)
-				ret.push_back(&entry.first);
+		for (int i = 0; i < vocabularySize; i++) {
+			ret.push_back(wordID(i));
 		}
 		return ret;
 	}
 
-	fl similarity(const vector<fl> &v1, const vector<fl> &v2) {
-		fl ret = 0;
-		int dim = (int)v1.size();
-		rep(i, 0, dim) {
-			ret += v1[i] * v2[i];
-		}
-		return ret;
+	fl similarity(wordID s1, wordID s2) {
+		return similarity(words[s1], words[s2]);
 	}
 
 	fl similarity(const string &s1, const string &s2) {
-		return similarity(vec.at(s1), vec.at(s2));
+		return similarity(getID(s1), getID(s2));
 	}
 
-	const vector<fl> &getVec(const string &s) {
-		return vec.at(s);
+	/** ID representing a particular word */
+	wordID getID(const string &s) {
+		return word2id.at(s);
 	}
 
+	/** Popularity of a word, the most popular word has a popularity of 1, the second most popular has a popularity of 2 etc. */
+	int getPopularity(wordID id) {
+		// Word IDs are the indices of words in the input file, which is assumed to be ordered according to popularity
+		return id + 1;
+	}
+
+	/** Word string corresponding to the ID */
+	const string &getWord(wordID id) {
+		return wordsStrings[id];
+	}
+
+	/** True if the word2vec model includes a vector for the specified word */
 	bool wordExists(const string &word) {
-		return popularity.count(word) > 0;
+		return word2id.count(word) > 0;
 	}
 
-	vector<pair<fl, string>> similarWords(string s) {
-		if (!vec.count(s)) {
+	vector<pair<fl, string>> similarWords(const string &s) {
+		if (!wordExists(s)) {
 			cout << s << " does not occur in the corpus" << endl;
 			return vector<pair<fl, string>>();
 		}
 		vector<pair<fl, string>> ret;
-		for (auto it = vec.begin(); it != vec.end(); ++it) {
-			ret.push_back(make_pair(-similarity(s, it->first), it->first));
+		for (auto it : word2id) {
+			ret.push_back(make_pair(-similarity(s, it.first), it.first));
 		}
 		sort(all(ret));
 		vector<pair<fl, string>> res;
@@ -198,14 +228,14 @@ struct Bot {
 	struct BoardWord {
 		char type;
 		string word;
-		vector<fl> vec;
+		wordID id;
 	};
 	vector<BoardWord> boardWords;
 	void addBoardWord(char type, const string &word) {
 		boardWords.push_back({
 			type,
 			word,
-			engine.getVec(word)
+			engine.getID(word)
 		});
 	}
 
@@ -224,17 +254,15 @@ struct Bot {
 		return false;
 	}
 
-	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
+	pair<fl, int> getWordScore(wordID word, bool debugPrint) {
 		if (debugPrint)
-			cout << "Printing statistics for \"" << word << "\"" << endl;
-
-		const vector<fl> &wordVec = engine.getVec(word);
+			cout << "Printing statistics for \"" << engine.getWord(word) << "\"" << endl;
 
 		typedef pair<fl, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
 		rep(i, 0, boardWords.size()) {
-			fl sim = engine.similarity(boardWords[i].vec, wordVec);
+			fl sim = engine.similarity(boardWords[i].id, word);
 			if (boardWords[i].type == 'g')
 				sim += marginCivilians;
 			if (boardWords[i].type == 'o')
@@ -327,12 +355,16 @@ struct Bot {
 			}
 		}
 
-		int popularity = engine.popularity.at(word);
+		int popularity = engine.getPopularity(word);
 		if (popularity < commonWordLimit)
 			bestScore *= commonWordWeight;
 		else if (popularity > rareWordLimit)
 			bestScore *= rareWordWeight;
 		return make_pair(bestScore, bestCount);
+	}
+
+	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
+		return getWordScore(engine.getID(word), debugPrint);
 	}
 
 	void setWords(const vector<string> &_myWords,
@@ -368,26 +400,26 @@ struct Bot {
 	}
 
 	pair<string, int> getBestWord() {
-		vector<const string *> candidates = engine.getCommonWords(vocabularySize);
-		priority_queue<pair<pair<fl, int>, const string *>> pq;
-		for (const string *candidate : candidates) {
-			pair<fl, int> res = getWordScore(*candidate, false);
+		vector<wordID> candidates = engine.getCommonWords(vocabularySize);
+		priority_queue<pair<pair<fl, int>, wordID>> pq;
+		for (wordID candidate : candidates) {
+			pair<fl, int> res = getWordScore(candidate, false);
 			pq.push({{res.first, -res.second}, candidate});
 		}
 
-		vector<pair<pair<fl, int>, const string *>> topList;
+		vector<pair<pair<fl, int>, wordID>> topList;
 
 		// Extract the top 20 words that are not forbidden by the rules
 		while (topList.size() < 20 && !pq.empty()) {
 			auto pa = pq.top();
 			pq.pop();
-			if (!forbiddenWord(*pa.second))
+			if (!forbiddenWord(engine.getWord(pa.second)))
 				topList.push_back(pa);
 		}
 
 		// Print how the score of the best word was computed
 		assert(!topList.empty());
-		const string &bestWord = *topList[0].second;
+		wordID bestWord = topList[0].second;
 		int bestCount = -topList[0].first.second;
 		getWordScore(bestWord, true);
 
@@ -395,15 +427,15 @@ struct Bot {
 		rep(i, 0, (int)topList.size()) {
 			auto res = topList[i];
 			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first.first << "\t"
-				 << *res.second << " " << -res.first.second << endl;
+				 << engine.getWord(res.second) << " " << -res.first.second << endl;
 		}
 
-		int p = engine.popularity.at(bestWord);
-		cout << "The best clue found is " << bestWord << " " << bestCount << endl;
-		cout << bestWord << " is the " << p << orderSuffix(p);
+		int p = engine.getPopularity(bestWord);
+		cout << "The best clue found is " << engine.getWord(bestWord) << " " << bestCount << endl;
+		cout << engine.getWord(bestWord) << " is the " << p << orderSuffix(p);
 
 		cout << " most popular word" << endl;
-		return make_pair(bestWord, bestCount);
+		return make_pair(engine.getWord(bestWord), bestCount);
 	}
 };
 
