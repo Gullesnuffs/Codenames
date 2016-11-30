@@ -201,15 +201,15 @@ struct GraphSimilarityEngine {
 	    rtrim(s);
 	}
 
-	Node* getOrCreateNode(string word) {
-		if (word2node.find(word) == word2node.end()) {
+	Node* getOrCreateNode(const string& word) {
+		auto it = word2node.find(word);
+		if (it == word2node.end()) {
 			auto node = new Node();
 			node->word = word;
 			nodes.push_back(node);
-			word2node[word] = node;
+			it = word2node.insert(make_pair(word, node)).first;
 		}
-
-		return word2node[word];
+		return it->second;
 	}
 
 	Node* getNode(string word) {
@@ -220,21 +220,14 @@ struct GraphSimilarityEngine {
 		}
 	}
 
-	struct SearchResult {
-		map<Node*, Node*> parents;
-		map<Node*, double> dists;
-	};
+	typedef map<Node*, pair<double, Node*>> SearchResult;
 
 	SearchResult search(string root, double maxDistance) {
 		auto rootNode = getNode(root);
-		map<Node*, double> dists;
-		map<Node*, Node*> parents;
+		map<Node*, pair<double, Node*>> distsAndParents;
 		priority_queue<pair<double,Node*>, vector<pair<double,Node*>>, greater<pair<double,Node*>>> que;
 		que.push({0.0, rootNode});
-		dists[rootNode] = 0;
-		parents[rootNode] = nullptr;
-
-		SearchResult result;
+		distsAndParents[rootNode] = {0, nullptr};
 
 		if (word2vecEngine.wordExists(root)) {
 			for (auto& commonWord : word2vecEngine.getCommonWords(10000)) {
@@ -243,8 +236,7 @@ struct GraphSimilarityEngine {
 					auto dist = word2vecEngine.similarity(root, *commonWord);
 					dist = abs(1 - dist);
 					auto cost = dist;
-					dists[node] = cost;
-					parents[node] = rootNode;
+					distsAndParents[node] = {cost, rootNode};
 					que.push({cost, node});
 				}
 			}
@@ -254,30 +246,25 @@ struct GraphSimilarityEngine {
 			auto p = que.top();
 			que.pop();
 			double dist = p.first;
-			if (dists[p.second] < dist) {
+			auto& dipa = distsAndParents[p.second];
+			if (dipa.first < dist) {
 				// Already visited
 				continue;
 			}
-			assert(dists[p.second] == dist);
-
-			if (dist > maxDistance) {
-				break;
-			}
-
-			result.parents[p.second] = parents[p.second];
-			result.dists[p.second] = dists[p.second];
+			assert(dipa.first == dist);
 
 			for (auto edge : p.second->edges) {
 				auto newDist = dist + edge.first;
-				if (dists.find(edge.second) == dists.end() || newDist < dists[edge.second]) {
-					dists[edge.second] = newDist;
-					parents[edge.second] = p.second;
+				if (newDist > maxDistance) continue;
+				auto& dipa2 = distsAndParents[edge.second];
+				if (dipa2.second == nullptr || newDist < dipa2.first) {
+					dipa2 = {newDist, p.second};
 					que.push({newDist, edge.second});
 				}
 			}
 		}
 
-		return result;
+		return distsAndParents;
 	}
 
 	bool load(const char *fileName, const char *fileName2) {
@@ -386,9 +373,9 @@ struct GraphSimilarityEngine {
 		int counter = 0;
 		auto fin = ifstream(fileName2, ios::binary);
 		cerr << "Loading..." << endl;
+		string word1;
+		string word2;
 		while(true) {
-			string word1;
-			string word2;
 			int weight;
 			getline(fin, word1, '\t');
 			getline(fin, word2, '\t');
@@ -884,7 +871,7 @@ int main() {
 	for (auto tgWord : targetWords) {
 		cerr << "Searching target word " << tgWord << " (of " << targetWords.size() << ")" << endl;
 		results.push_back(engine.search(tgWord, 4.5));
-		cerr << "Reached " << results[results.size()-1].dists.size() << " nodes" << endl;
+		cerr << "Reached " << results[results.size()-1].size() << " nodes" << endl;
 	}
 
 	cerr << "Evaluating..." << endl;
@@ -895,8 +882,9 @@ int main() {
 		double sqrDistSum = 0.0;
 		vector<pair<double,int>> dists;
 		for (int j = 0; j < results.size(); j++) {
-			if (results[j].dists.find(root) != results[j].dists.end()) {
-				dists.push_back({results[j].dists[root], j});
+			auto it = results[j].find(root);
+			if (it != results[j].end()) {
+				dists.push_back({it->second.first, j});
 			} else {
 				dists.push_back({1000.0, j});
 			}
@@ -929,8 +917,9 @@ int main() {
 		double sqrDistSum = 0.0;
 		vector<pair<double,int>> dists;
 		for (int j = 0; j < results.size(); j++) {
-			if (results[j].dists.find(root) != results[j].dists.end()) {
-				dists.push_back({results[j].dists[root], j});
+			auto it = results[j].find(root);
+			if (it != results[j].end()) {
+				dists.push_back({it->second.first, j});
 			} else {
 				dists.push_back({1000.0, j});
 			}
@@ -943,12 +932,12 @@ int main() {
 			auto& result = results[index];
 			auto tg = targetWords[index];
 			auto cnode = root;
-			if (result.dists.find(cnode) != result.dists.end()) {
+			if (result.find(cnode) != result.end()) {
 				cerr << "\t";
-				cerr << result.dists[cnode] << ": ";
+				cerr << result[cnode].first << ": ";
 				while(cnode != nullptr) {
 					cerr << " -> " << cnode->word;
-					cnode = result.parents[cnode];
+					cnode = result[cnode].second;
 				}
 				cerr << endl;
 			}
