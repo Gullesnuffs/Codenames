@@ -17,7 +17,6 @@ using namespace std;
 #define all(v) (v).begin(), (v).end()
 #define what_is(x) cout << #x << " is " << x << endl;
 
-typedef float fl;
 typedef long long ll;
 typedef pair<int, int> pii;
 typedef vector<int> vi;
@@ -44,21 +43,21 @@ string toLowerCase(string s) {
 	return s;
 }
 
-fl sigmoid(fl x) {
+float sigmoid(float x) {
 	return 1.0f / (1.0f + exp(-x));
 }
 
 struct SimilarityEngine {
 private:
 	map<string, wordID> word2id;
-	vector<vector<fl>> words;
+	vector<vector<float>> words;
 	vector<string> wordsStrings;
 
 	/** Similarity between two word vectors.
 	 * Implemented as an inner product.
 	 */
-	fl similarity(const vector<fl> &v1, const vector<fl> &v2) {
-		fl ret = 0;
+	float similarity(const vector<float> &v1, const vector<float> &v2) {
+		float ret = 0;
 		int dim = (int)v1.size();
 		rep(i, 0, dim) {
 			ret += v1[i] * v2[i];
@@ -84,7 +83,7 @@ public:
 		char buf[bufSize];
 		string word;
 		vector<float> values(dimension);
-		vector<fl> valuesd;
+		vector<float> valuesd;
 		words.resize(numberOfWords);
 		wordsStrings.resize(numberOfWords);
 		rep(i, 0, numberOfWords) {
@@ -125,11 +124,11 @@ public:
 		return ret;
 	}
 
-	fl similarity(wordID s1, wordID s2) {
+	float similarity(wordID s1, wordID s2) {
 		return similarity(words[s1], words[s2]);
 	}
 
-	fl similarity(const string &s1, const string &s2) {
+	float similarity(const string &s1, const string &s2) {
 		return similarity(getID(s1), getID(s2));
 	}
 
@@ -154,17 +153,17 @@ public:
 		return word2id.count(word) > 0;
 	}
 
-	vector<pair<fl, string>> similarWords(const string &s) {
+	vector<pair<float, string>> similarWords(const string &s) {
 		if (!wordExists(s)) {
 			cout << s << " does not occur in the corpus" << endl;
-			return vector<pair<fl, string>>();
+			return vector<pair<float, string>>();
 		}
-		vector<pair<fl, string>> ret;
+		vector<pair<float, string>> ret;
 		for (auto it : word2id) {
 			ret.push_back(make_pair(-similarity(s, it.first), it.first));
 		}
 		sort(all(ret));
-		vector<pair<fl, string>> res;
+		vector<pair<float, string>> res;
 		rep(i, 0, 10) {
 			res.push_back(make_pair(-ret[i].first, ret[i].second));
 		}
@@ -174,48 +173,48 @@ public:
 
 struct Bot {
 	// Give a similarity bonus to "bad" words
-	fl marginCivilians = 0.02f;
-	fl marginOpponentWords = 0.04f;
-	fl marginAssassins = 0.07f;
+	float marginCivilians = 0.02f;
+	float marginOpponentWords = 0.04f;
+	float marginAssassins = 0.07f;
 
 	// Constants used in scoring function based
 	// on the sigmoid function of the similarities
-	fl fuzzyWeightAssassin = -0.2f;
-	fl fuzzyWeightOpponent = -0.1f;
-	fl fuzzyWeightMy = 0.1f;
-	fl fuzzyWeightGrey = -0.05f;
-	fl fuzzyExponent = 15;
-	fl fuzzyOffset = 0.3f;
+	float fuzzyWeightAssassin = -0.2f;
+	float fuzzyWeightOpponent = -0.1f;
+	float fuzzyWeightMy = 0.1f;
+	float fuzzyWeightGrey = -0.05f;
+	float fuzzyExponent = 15;
+	float fuzzyOffset = 0.3f;
 
 	// Assume that we will never succeed if the similarity
 	// is at most minSimilarity
-	fl minSimilarity = 0.2f;
+	float minSimilarity = 0.2f;
 
 	// Good words with smaller similarity than civilians and opponent
 	// spies are worth less
-	fl multiplierAfterBadWord = 0.7f;
+	float multiplierAfterBadWord = 0.7f;
 
 	// How bad is it if there is an opponent word with high similarity
-	fl weightOpponent = -1.5f;
+	float weightOpponent = -1.5f;
 
 	// How bad is it if there is a grey word with high similarity
-	fl weightGrey = -0.2f;
+	float weightGrey = -0.2f;
 
 	// How important is it that the last good word has greater
 	// similarity than the next bad word
-	fl marginWeight = 0.1f;
+	float marginWeight = 0.1f;
 
 	// Number of words that are considered common
 	int commonWordLimit = 1000;
 
 	// Avoid common words
-	fl commonWordWeight = 0.9f;
+	float commonWordWeight = 0.9f;
 
 	// Number of words that are not considered rare
 	int rareWordLimit = 15000;
 
 	// Avoid rare words
-	fl rareWordWeight = 0.8f;
+	float rareWordWeight = 0.8f;
 
 	// Consider only the 50000 most common words
 	int vocabularySize = 50000;
@@ -254,15 +253,15 @@ struct Bot {
 		return false;
 	}
 
-	pair<fl, int> getWordScore(wordID word, bool debugPrint) {
+	pair<float, int> getWordScore(wordID word, bool debugPrint) {
 		if (debugPrint)
 			cout << "Printing statistics for \"" << engine.getWord(word) << "\"" << endl;
 
-		typedef pair<fl, BoardWord *> Pa;
+		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
 		rep(i, 0, boardWords.size()) {
-			fl sim = engine.similarity(boardWords[i].id, word);
+			float sim = engine.similarity(boardWords[i].id, word);
 			if (boardWords[i].type == 'g')
 				sim += marginCivilians;
 			if (boardWords[i].type == 'o')
@@ -297,10 +296,10 @@ struct Bot {
 		}
 
 		// Compute a fuzzy score
-		fl baseScore = 0;
+		float baseScore = 0;
 		rep(i, 0, v.size()) {
 			char type = v[i].second->type;
-			fl weight;
+			float weight;
 			if (type == 'a')
 				weight = fuzzyWeightAssassin;
 			else if (type == 'o')
@@ -311,14 +310,14 @@ struct Bot {
 				weight = fuzzyWeightGrey;
 			else
 				assert(0);
-			fl contribution = weight * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
+			float contribution = weight * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 			baseScore += contribution;
 		}
 
 		int bestCount = 0;
-		fl curScore = 0, bestScore = 0, lastGood = 0;
+		float curScore = 0, bestScore = 0, lastGood = 0;
 		int curCount = 0;
-		fl mult = 1;
+		float mult = 1;
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
@@ -340,7 +339,7 @@ struct Bot {
 				mult *= multiplierAfterBadWord;
 				continue;
 			}
-			fl tmpScore = -1;
+			float tmpScore = -1;
 			rep(j, i + 1, v.size()) {
 				char type2 = v[j].second->type;
 				if (type2 == 'a' || type2 == 'o') {
@@ -363,7 +362,7 @@ struct Bot {
 		return make_pair(bestScore, bestCount);
 	}
 
-	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
+	pair<float, int> getWordScore(const string &word, bool debugPrint) {
 		return getWordScore(engine.getID(word), debugPrint);
 	}
 
@@ -401,13 +400,13 @@ struct Bot {
 
 	pair<string, int> getBestWord() {
 		vector<wordID> candidates = engine.getCommonWords(vocabularySize);
-		priority_queue<pair<pair<fl, int>, wordID>> pq;
+		priority_queue<pair<pair<float, int>, wordID>> pq;
 		for (wordID candidate : candidates) {
-			pair<fl, int> res = getWordScore(candidate, false);
+			pair<float, int> res = getWordScore(candidate, false);
 			pq.push({{res.first, -res.second}, candidate});
 		}
 
-		vector<pair<pair<fl, int>, wordID>> topList;
+		vector<pair<pair<float, int>, wordID>> topList;
 
 		// Extract the top 20 words that are not forbidden by the rules
 		while (topList.size() < 20 && !pq.empty()) {
@@ -535,7 +534,7 @@ class GameInterface {
 			cout << word << " was not found in the dictionary" << endl;
 			return;
 		}
-		pair<fl, int> res = bot.getWordScore(word, true);
+		pair<float, int> res = bot.getWordScore(word, true);
 		cout << word << " " << res.second << " has score " << res.first << endl;
 	}
 
