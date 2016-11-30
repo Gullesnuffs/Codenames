@@ -9,6 +9,8 @@
 #include <fstream>
 #include <algorithm>
 #include <queue>
+#include <sstream>
+
 using namespace std;
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
@@ -139,6 +141,282 @@ struct SimilarityEngine {
 			res.push_back(make_pair(-ret[i].first, ret[i].second));
 		}
 		return res;
+	}
+};
+
+struct GraphSimilarityEngine {
+	class Node {
+	public:
+		string word;
+		vector<pair<float,Node*>> edges;
+		int types;
+
+		bool canBeNoun() {
+			return (types >> 0) & 1;
+		}
+
+		bool canBeVerb() {
+			return (types >> 1) & 1;
+		}
+
+		bool canBeAdj() {
+			return (types >> 2) & 1;
+		}
+	};
+
+	SimilarityEngine word2vecEngine;
+	map<string, Node*> word2node;
+	vector<Node*> nodes;
+
+	GraphSimilarityEngine(SimilarityEngine word2vecEngine) : word2vecEngine(word2vecEngine) {}
+
+	// @author Stack Overflow
+	void split(const string &s, char delim, vector<string> &elems) {
+	    stringstream ss;
+	    ss.str(s);
+	    string item;
+	    while (getline(ss, item, delim)) {
+	        elems.push_back(item);
+	    }
+	}
+
+	// @author Stack Overflow
+	// trim from start (in place)
+	static inline void ltrim(string &s) {
+	    s.erase(s.begin(), find_if(s.begin(), s.end(),
+	            not1(ptr_fun<int, int>(isspace))));
+	}
+
+	// @author Stack Overflow
+	// trim from end (in place)
+	static inline void rtrim(string &s) {
+	    s.erase(find_if(s.rbegin(), s.rend(),
+	            not1(ptr_fun<int, int>(isspace))).base(), s.end());
+	}
+
+	// @author Stack Overflow
+	// trim from both ends (in place)
+	static inline void trim(string &s) {
+	    ltrim(s);
+	    rtrim(s);
+	}
+
+	Node* getOrCreateNode(string word) {
+		if (word2node.find(word) == word2node.end()) {
+			auto node = new Node();
+			node->word = word;
+			nodes.push_back(node);
+			word2node[word] = node;
+		}
+
+		return word2node[word];
+	}
+
+	Node* getNode(string word) {
+		if (word2node.find(word) != word2node.end()) {
+			return word2node[word];
+		} else {
+			return nullptr;
+		}
+	}
+
+	struct SearchResult {
+		map<Node*, Node*> parents;
+		map<Node*, double> dists;
+	};
+
+	SearchResult search(string root, double maxDistance) {
+		auto rootNode = getNode(root);
+		map<Node*, double> dists;
+		map<Node*, Node*> parents;
+		priority_queue<pair<double,Node*>, vector<pair<double,Node*>>, greater<pair<double,Node*>>> que;
+		que.push({0.0, rootNode});
+		dists[rootNode] = 0;
+		parents[rootNode] = nullptr;
+
+		SearchResult result;
+
+		if (word2vecEngine.wordExists(root)) {
+			for (auto& commonWord : word2vecEngine.getCommonWords(10000)) {
+				auto node = getNode(*commonWord);
+				if (node != nullptr && node != rootNode) {
+					auto dist = word2vecEngine.similarity(root, *commonWord);
+					dist = abs(1 - dist);
+					auto cost = dist;
+					dists[node] = cost;
+					parents[node] = rootNode;
+					que.push({cost, node});
+				}
+			}
+		}
+
+		while(!que.empty()) {
+			auto p = que.top();
+			que.pop();
+			double dist = p.first;
+			if (dists[p.second] < dist) {
+				// Already visited
+				continue;
+			}
+			assert(dists[p.second] == dist);
+
+			if (dist > maxDistance) {
+				break;
+			}
+
+			result.parents[p.second] = parents[p.second];
+			result.dists[p.second] = dists[p.second];
+
+			for (auto edge : p.second->edges) {
+				auto newDist = dist + edge.first;
+				if (dists.find(edge.second) == dists.end() || newDist < dists[edge.second]) {
+					dists[edge.second] = newDist;
+					parents[edge.second] = p.second;
+					que.push({newDist, edge.second});
+				}
+			}
+		}
+
+		return result;
+	}
+
+	bool load(const char *fileName, const char *fileName2) {
+#ifdef SYNONYM_DATABASE
+		ifstream fin(fileName, ios::binary);
+		while(true) {
+			string word;
+			int meanings;
+			getline(fin, word, '|');
+			if (!fin) {
+				cerr << "Done" << endl;
+				break;
+			}
+			trim(word);
+			fin >> meanings;
+
+			Node* node = getOrCreateNode(word);
+			
+			for (int i = 0; i < meanings; i++) {
+				string type;
+				fin.ignore(255, '(');
+				getline(fin, type, ')');
+				fin.ignore(255, '|');
+				string synonymString;
+				getline(fin, synonymString);
+
+				if (type == "noun") {
+					node->types |= 1 << 0;
+				} else if (type == "verb") {
+					node->types |= 1 << 1;
+				} else if (type == "adj") {
+					node->types |= 1 << 2;
+				} else if (type == "adv") {
+					// Eh, sort of like adj
+					node->types |= 1 << 2;
+				} else {
+					cerr << "Did not recognise type: " << type << endl;
+				}
+			}
+		}
+
+		// Read again, now with more information
+		fin = ifstream(fileName, ios::binary);
+		while(true) {
+			string word;
+			int meanings;
+			getline(fin, word, '|');
+			if (!fin) {
+				cerr << "Done" << endl;
+				break;
+			}
+			trim(word);
+			fin >> meanings;
+
+			Node* node = getOrCreateNode(word);
+			
+			for (int i = 0; i < meanings; i++) {
+				string type;
+				fin.ignore(255, '(');
+				getline(fin, type, ')');
+				fin.ignore(255, '|');
+				string synonymString;
+				getline(fin, synonymString);
+				vector<string> synonyms;
+				split(synonymString, '|', synonyms);
+
+				for (int j = 0; j < synonyms.size(); j++) {
+					bool isCategory = j == 0;
+					auto syn = synonyms[j];
+					trim(syn);
+					if (syn.size() == 0) continue;
+
+					node->edges.push_back({isCategory ? 1.5 : 2, getOrCreateNode(syn)});
+					getOrCreateNode(syn)->edges.push_back({isCategory ? 1.5 : 2, node});
+
+					vector<string> subWords;
+					split(syn, ' ', subWords);
+					if (subWords.size() > 1) {
+						int numNonAdj = 0;
+						for (auto sub : subWords) {
+							trim(sub);
+							if (sub.size() <= 2) continue;
+							auto subNode = getOrCreateNode(sub);
+							if (subNode->canBeVerb() || subNode->canBeNoun()) numNonAdj++;
+						}
+
+						if (numNonAdj == 1) {
+							for (auto sub : subWords) {
+								trim(sub);
+								if (sub.size() <= 2) continue;
+								auto subNode = getOrCreateNode(sub);
+								if (subNode->canBeVerb() || subNode->canBeNoun()) {
+									//cerr << "Adding edge " << node->word << " " << subNode->word << endl;
+									node->edges.push_back({2.2, subNode});
+									subNode->edges.push_back({2.2, node});
+								}
+							}
+						}
+					}
+				}
+				//cerr << type << ": " << synonyms << endl;
+			}
+			//cerr << word << endl;
+		}
+#else
+		int counter = 0;
+		auto fin = ifstream(fileName2, ios::binary);
+		cerr << "Loading..." << endl;
+		while(true) {
+			string word1;
+			string word2;
+			int weight;
+			getline(fin, word1, '\t');
+			getline(fin, word2, '\t');
+			fin >> weight;
+			// Newline
+			fin.ignore(1);
+
+			if (!fin) {
+				cerr << endl;
+				cerr << "Done" << endl;
+				cerr << "Read " << counter << " entries with " << nodes.size() << " nodes" << endl;
+				break;
+			}
+
+			counter++;
+			if ((counter % 100000) == 0) {
+				cerr << "\rRead " << counter << " entries...";
+			}
+
+			Node* node1 = getOrCreateNode(word1);
+			Node* node2 = getOrCreateNode(word2);
+			
+			node2->edges.push_back({ 1.0 / sqrt(weight), node1});
+			node1->edges.push_back({ 10.0 / sqrt(weight) + 0.5, node2});
+		}
+#endif
+
+		return true;
 	}
 };
 
@@ -575,6 +853,109 @@ class GameInterface {
 };
 
 int main() {
+	#if true
+	SimilarityEngine word2vecEngine;
+	word2vecEngine.load("data.bin");
+
+	GraphSimilarityEngine engine(word2vecEngine);
+	engine.load("th_en_US_new.dat", "prunned-relations.txt");
+	cerr << "Searching..." << endl;
+	vector<string> targetWords { "teacher", "mine", "chest", "wind", "bug", "giant", "parachute", "lemon", "cold" };
+	//vector<string> targetWords = { "lead", "witch", "brush", "mercury", "march", "bolt", "board", "pilot", "nut" };
+	//vector<string> targetWords =  { "casino", "pass", "concert", "board", "queen", "hood", "ground", "cross", "court" };
+
+	/*auto res = engine.search("horse", 20);
+	for (auto node : res.dists) {
+		if (node.first->word == "car") {
+			auto cnode = node.first;
+			cerr << res.dists[cnode] << ": ";
+			if (res.dists.find(cnode) != res.dists.end()) {
+				cerr << "\t";
+				while(cnode != nullptr) {
+					cerr << " -> " << cnode->word;
+					cnode = res.parents[cnode];
+				}
+				cerr << endl;
+			}
+		}
+	}*/
+
+	vector<GraphSimilarityEngine::SearchResult> results;
+	for (auto tgWord : targetWords) {
+		cerr << "Searching target word " << tgWord << " (of " << targetWords.size() << ")" << endl;
+		results.push_back(engine.search(tgWord, 4.5));
+		cerr << "Reached " << results[results.size()-1].dists.size() << " nodes" << endl;
+	}
+
+	cerr << "Evaluating..." << endl;
+
+	vector<pair<double, pair<int, GraphSimilarityEngine::Node*>>> scores;
+	for (auto root : engine.nodes) {
+		int found = 0;
+		double sqrDistSum = 0.0;
+		vector<pair<double,int>> dists;
+		for (int j = 0; j < results.size(); j++) {
+			if (results[j].dists.find(root) != results[j].dists.end()) {
+				dists.push_back({results[j].dists[root], j});
+			} else {
+				dists.push_back({1000.0, j});
+			}
+		}
+		sort(dists.begin(), dists.end());
+
+		double accDist = 0.0;
+		for (int j = 0; j < dists.size(); j++) {
+			accDist += dists[j].first;
+			double avgDist = accDist / j;
+			if (j > 1 && avgDist <= 5.0) {
+				//cerr << "Found " << root->word << " at " << avgDist << endl;
+				scores.push_back({ avgDist, {j, root}});
+			}
+		}
+	}
+
+	sort(scores.begin(), scores.end());
+	for (int w = 0; w < min(50, (int)scores.size()); w++) {
+		auto& score = scores[w];
+
+		double avgDist = score.first;
+		auto root = score.second.second;
+		int count = score.second.first;
+
+		cerr << root->word << ": " << count << ": (dist: " << avgDist << ")" << endl;
+
+
+		int found = 0;
+		double sqrDistSum = 0.0;
+		vector<pair<double,int>> dists;
+		for (int j = 0; j < results.size(); j++) {
+			if (results[j].dists.find(root) != results[j].dists.end()) {
+				dists.push_back({results[j].dists[root], j});
+			} else {
+				dists.push_back({1000.0, j});
+			}
+		}
+		sort(dists.begin(), dists.end());
+
+
+		for (int k = 0; k <= count; k++) {
+			int index = dists[k].second;
+			auto& result = results[index];
+			auto tg = targetWords[index];
+			auto cnode = root;
+			if (result.dists.find(cnode) != result.dists.end()) {
+				cerr << "\t";
+				cerr << result.dists[cnode] << ": ";
+				while(cnode != nullptr) {
+					cerr << " -> " << cnode->word;
+					cnode = result.parents[cnode];
+				}
+				cerr << endl;
+			}
+		}
+	}
+	exit(0);
+	#endif
 	GameInterface interface;
 	interface.run();
 	return 0;
