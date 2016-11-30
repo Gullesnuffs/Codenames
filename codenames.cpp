@@ -499,7 +499,6 @@ class GameInterface {
 	void commandScore() {
 		string word;
 		cin >> word;
-		word = toLowerCase(word);
 		if (!engine.wordExists(word)) {
 			cout << word << " was not found in the dictionary" << endl;
 			return;
