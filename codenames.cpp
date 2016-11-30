@@ -144,15 +144,16 @@ struct SimilarityEngine {
 
 struct Bot {
 	// Give a similarity bonus to "bad" words
-	fl marginOpponentWords = 0.02f;
-	fl marginAssassins = 0.05f;
+	fl marginCivilians = 0.02f;
+	fl marginOpponentWords = 0.04f;
+	fl marginAssassins = 0.07f;
 
 	// Constants used in scoring function based
 	// on the sigmoid function of the similarities
-	fl fuzzyWeightAssassin = -1.0f;
-	fl fuzzyWeightOpponent = -0.5f;
-	fl fuzzyWeightMy = 0.5f;
-	fl fuzzyWeightGrey = -0.2f;
+	fl fuzzyWeightAssassin = -0.2f;
+	fl fuzzyWeightOpponent = -0.1f;
+	fl fuzzyWeightMy = 0.1f;
+	fl fuzzyWeightGrey = -0.05f;
 	fl fuzzyExponent = 15;
 	fl fuzzyOffset = 0.3f;
 
@@ -160,15 +161,19 @@ struct Bot {
 	// is at most minSimilarity
 	fl minSimilarity = 0.2f;
 
+	// Good words with smaller similarity than civilians and opponent
+	// spies are worth less
+	fl multiplierAfterBadWord = 0.7f;
+
 	// How bad is it if there is an opponent word with high similarity
 	fl weightOpponent = -1.5f;
 
 	// How bad is it if there is a grey word with high similarity
-	fl weightGrey = -0.4f;
+	fl weightGrey = -0.2f;
 
 	// How important is it that the last good word has greater
 	// similarity than the next bad word
-	fl marginWeight = 0.2f;
+	fl marginWeight = 0.1f;
 
 	// Number of words that are considered common
 	int commonWordLimit = 1000;
@@ -230,6 +235,8 @@ struct Bot {
 		v.clear();
 		rep(i, 0, boardWords.size()) {
 			fl sim = engine.similarity(boardWords[i].vec, wordVec);
+			if (boardWords[i].type == 'g')
+				sim += marginCivilians;
 			if (boardWords[i].type == 'o')
 				sim += marginOpponentWords;
 			if (boardWords[i].type == 'a')
@@ -283,6 +290,7 @@ struct Bot {
 		int bestCount = 0;
 		fl curScore = 0, bestScore = 0, lastGood = 0;
 		int curCount = 0;
+		fl mult = 1;
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
@@ -291,22 +299,24 @@ struct Bot {
 				break;
 			if (type == 'o') {
 				curScore += weightOpponent;
+				mult *= multiplierAfterBadWord;
 				continue;
 			}
 			if (type == 'm') {
 				lastGood = -v[i].first;
-				curScore += sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
+				curScore += mult * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 				++curCount;
 			}
 			if (type == 'g') {
-				curScore += weightGrey;
+				curScore += mult * weightGrey;
+				mult *= multiplierAfterBadWord;
 				continue;
 			}
 			fl tmpScore = -1;
 			rep(j, i + 1, v.size()) {
 				char type2 = v[j].second->type;
 				if (type2 == 'a' || type2 == 'o') {
-					tmpScore = marginWeight * sigmoid((lastGood - (-v[j].first)) * fuzzyExponent);
+					tmpScore = mult * marginWeight * sigmoid((lastGood - (-v[j].first)) * fuzzyExponent);
 					break;
 				}
 			}
