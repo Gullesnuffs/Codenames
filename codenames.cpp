@@ -55,6 +55,7 @@ struct SimilarityEngine {
 	virtual const string &getWord(wordID id) = 0;
 	virtual bool wordExists(const string &word) = 0;
 	virtual vector<wordID> getCommonWords(int vocabularySize) = 0;
+	virtual ~SimilarityEngine() {}
 };
 
 struct Word2VecSimilarityEngine : SimilarityEngine {
