@@ -48,6 +48,20 @@ float sigmoid(float x) {
 }
 
 struct SimilarityEngine {
+	virtual bool load(const char *fileName) = 0;
+	virtual float similarity(wordID s1, wordID s2) = 0;
+	virtual int getPopularity(wordID id) = 0;
+	virtual wordID getID(const string &s) = 0;
+	virtual const string &getWord(wordID id) = 0;
+	virtual bool wordExists(const string &word) = 0;
+	virtual vector<wordID> getCommonWords(int vocabularySize) = 0;
+
+	float similarity(const string &s1, const string &s2) {
+		return similarity(getID(s1), getID(s2));
+	}
+};
+
+struct Word2VecSimilarityEngine : SimilarityEngine {
 private:
 	map<string, wordID> word2id;
 	vector<vector<float>> words;
@@ -128,10 +142,6 @@ public:
 		return similarity(words[s1], words[s2]);
 	}
 
-	float similarity(const string &s1, const string &s2) {
-		return similarity(getID(s1), getID(s2));
-	}
-
 	/** ID representing a particular word */
 	wordID getID(const string &s) {
 		return word2id.at(s);
@@ -158,14 +168,14 @@ public:
 			cout << s << " does not occur in the corpus" << endl;
 			return vector<pair<float, string>>();
 		}
-		vector<pair<float, string>> ret;
-		for (auto it : word2id) {
-			ret.push_back(make_pair(-similarity(s, it.first), it.first));
+		vector<pair<float, wordID>> ret;
+		for (int i = 0; i < words.size(); i++) {
+			ret.push_back(make_pair(-similarity(getID(s), wordID(i)), wordID(i)));
 		}
 		sort(all(ret));
 		vector<pair<float, string>> res;
 		rep(i, 0, 10) {
-			res.push_back(make_pair(-ret[i].first, ret[i].second));
+			res.push_back(make_pair(-ret[i].first, getWord(ret[i].second)));
 		}
 		return res;
 	}
@@ -439,7 +449,7 @@ struct Bot {
 };
 
 class GameInterface {
-	SimilarityEngine engine;
+	Word2VecSimilarityEngine engine;
 	Bot bot;
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
 	string myColor;
