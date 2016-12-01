@@ -9,6 +9,7 @@
 #include <fstream>
 #include <algorithm>
 #include <queue>
+#include <ctime>
 using namespace std;
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
@@ -16,6 +17,7 @@ using namespace std;
 #define trav(x, v) for (auto &x : v)
 #define all(v) (v).begin(), (v).end()
 #define what_is(x) cout << #x << " is " << x << endl;
+//#define DEBUG_MCTS
 
 typedef float fl;
 typedef long long ll;
@@ -45,9 +47,18 @@ fl sigmoid(fl x) {
 	return 1.0f / (1.0f + exp(-x));
 }
 
+fl inverseSigmoid(fl x) {
+	if(x > 0.999999)
+		return 10000;
+	if(x < 0.000001)
+		return -10000;
+	return -log(1/x-1);
+}
+
 struct SimilarityEngine {
 	map<string, vector<fl>> vec;
 	map<string, int> popularity;
+	map<pair<string, string>, fl> cache;
 
 	// Returns true if successful
 	bool load(const char *fileName) {
@@ -113,7 +124,8 @@ struct SimilarityEngine {
 	}
 
 	fl similarity(const string &s1, const string &s2) {
-		return similarity(vec.at(s1), vec.at(s2));
+		fl res = similarity(vec.at(s1), vec.at(s2));
+		return res;
 	}
 
 	const vector<fl> &getVec(const string &s) {
@@ -141,6 +153,162 @@ struct SimilarityEngine {
 		return res;
 	}
 };
+
+struct State{
+	vector<string> words;
+	vector<fl> probPlayer[2];
+	vector<fl> probNotPlayer[2];
+	int turn;
+	int clueWordsRemaining[2];
+
+	State(){
+		turn = 0;
+		clueWordsRemaining[0]=0;
+		clueWordsRemaining[1]=0;
+	}
+
+	void printWords(){
+		rep(i,0,(int)words.size()){
+			cout << words[i] << " ";
+		}
+		cout << endl;
+	}
+	
+	void addWord(string word){
+		words.push_back(word);
+		probPlayer[0].push_back(0);
+		probPlayer[1].push_back(0);
+		probNotPlayer[0].push_back(1);
+		probNotPlayer[1].push_back(1);
+	}
+
+	bool operator<(const State &other) const{
+		if(words.size() != other.words.size())
+			return words.size() < other.words.size();
+		rep(i,0,(int)words.size()){
+			if(words[i] != other.words[i])
+				return words[i] < other.words[i];
+			rep(j,0,2){
+				if(probPlayer[j][i] != other.probPlayer[j][i])
+					return probPlayer[j][i] < other.probPlayer[j][i];
+				if(probNotPlayer[j][i] != other.probNotPlayer[j][i])
+					return probNotPlayer[j][i] < other.probNotPlayer[j][i];
+			}
+		}
+		return 0;
+	}
+
+	void reset(){
+		words.clear();
+		probPlayer[0].clear();
+		probPlayer[1].clear();
+		probNotPlayer[0].clear();
+		probNotPlayer[1].clear();
+	}
+
+	void acceptClue(pair<string, int> clue, int color, SimilarityEngine &engine){
+		clueWordsRemaining[color] += clue.second;
+		vector<fl> probs;
+		double lo=-1.0;
+		double hi=1.0;
+		rep(iter,0,50){
+			probs.clear();
+			double mid=(lo+hi)/2;
+			fl probSum=0;
+			rep(i,0,(int)words.size()){
+				probs.push_back(sigmoid(30*(engine.similarity(words[i], clue.first)-mid)));
+				probSum += probs.back();
+			}
+			if(probSum > clue.second)
+				lo=mid;
+			else
+				hi=mid;
+		}
+		rep(i,0,(int)probs.size()){
+			probNotPlayer[color][i] *= 1-probs[i];
+			probPlayer[color][i] = 1-probNotPlayer[color][i];
+		}
+	}
+
+	string getGuess(int color){
+		vector<fl> probs;
+		fl probSum=0;
+		if(!clueWordsRemaining[color]){
+#ifdef DEBUG_MCTS
+			cerr << "No clue words remaining" << endl;
+#endif
+			return "";
+		}
+#ifdef DEBUG_MCTS
+		cerr << "Printing guessing statistics" << endl;
+#endif
+		rep(i,0,(int)words.size()){
+			fl score = inverseSigmoid(probPlayer[color][i]);
+			//score *= 0.5+0.5*probNotPlayer[!color][i];
+			score -= inverseSigmoid(0.1+0.4*probPlayer[!color][i]);
+			if(score < 0)
+				score=0;
+#ifdef DEBUG_MCTS
+			cerr << words[i] << " " << probPlayer[color][i] << " " << probPlayer[!color][i] << " " << score << endl;
+#endif
+			probs.push_back(score);
+			probSum += probs.back();
+		}
+		if((rand()%1000)/1000.0 >= probSum)
+			return "";
+		fl r=(((rand()*475345LL+rand())%10000000)/10000000.0)*probSum;
+		rep(i,0,(int)words.size()){
+			r -= probs[i];
+			if(r < 0){
+#ifdef DEBUG_MCTS
+				cerr << "The score of " << words[i] << " is " << probs[i] << endl;
+#endif
+				return words[i];
+			}
+		}
+		cerr << "probSum = " << probSum << endl;
+		cerr << "r = " << r << endl;
+		assert(0);
+	}
+
+	void performGuess(string guess, int wordColor, int myColor){
+		rep(i,0,(int)words.size()){
+			if(words[i] == guess){
+				words.erase(words.begin()+i);
+				probPlayer[0].erase(probPlayer[0].begin()+i);
+				probPlayer[1].erase(probPlayer[1].begin()+i);
+				probNotPlayer[0].erase(probNotPlayer[0].begin()+i);
+				probNotPlayer[1].erase(probNotPlayer[1].begin()+i);
+				--i;
+			}
+		}
+		if(wordColor == myColor){
+			clueWordsRemaining[myColor]--;
+		}
+		assert(words.size() == probPlayer[0].size());
+		assert(words.size() == probPlayer[1].size());
+	}
+};
+
+struct BoardWord {
+	char type;
+	string word;
+	vector<fl> vec;
+
+	bool operator==(const BoardWord &other) const{
+		return word == other.word;
+	}
+
+	bool operator!=(const BoardWord &other) const{
+		return !(*this == other);
+	}
+
+	bool operator<(const BoardWord &other) const{
+		return word < other.word;
+	}
+};
+
+map<string, vector<pair<fl, BoardWord *> > > savedSimilarities;
 
 struct Bot {
 	// Give a similarity bonus to "bad" words
@@ -190,16 +358,13 @@ struct Bot {
 	// Consider only the 50000 most common words
 	int vocabularySize = 50000;
 
+	vector<const string*> decentWords;
+
 	SimilarityEngine &engine;
 
 	Bot(SimilarityEngine &engine) : engine(engine) {}
 
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
-	struct BoardWord {
-		char type;
-		string word;
-		vector<fl> vec;
-	};
 	vector<BoardWord> boardWords;
 	void addBoardWord(char type, const string &word) {
 		boardWords.push_back({
@@ -224,24 +389,53 @@ struct Bot {
 		return false;
 	}
 
-	pair<fl, int> getWordScore(const string &word, bool debugPrint) {
+	pair<fl, int> getWordScore(string word, bool debugPrint) {
 		if (debugPrint)
 			cout << "Printing statistics for \"" << word << "\"" << endl;
 
-		const vector<fl> &wordVec = engine.getVec(word);
+		//const vector<fl> &wordVec = engine.getVec(word);
 
 		typedef pair<fl, BoardWord *> Pa;
-		static vector<Pa> v;
-		v.clear();
-		rep(i, 0, boardWords.size()) {
-			fl sim = engine.similarity(boardWords[i].vec, wordVec);
+		vector<Pa> v;
+		auto it = savedSimilarities.find(word);
+		if(it != savedSimilarities.end()){
+			//cerr << "Cached " << word << endl;
+			vector<Pa>* saved = &it->second;
+			v.reserve(boardWords.size());
+			int j=0;
+			rep(i, 0, (int)boardWords.size()){
+				while(*((*saved)[j].second) != boardWords[i]){
+					++j;
+					if(j == saved->size()){
+						cerr << "Failed for " << boardWords[i].word << endl;
+						cerr << "Saved vector contains " << saved->size() << " elements" << endl;
+						rep(k, 0, (int)saved->size()){
+							cerr << "Element " << (k+1) << ": " <<(*saved)[k].second->word << endl;
+						}
+						cerr << endl;
+					}
+					assert(j < saved->size());
+				}
+				v.push_back({(*saved)[j].first, &boardWords[i]});
+			}
+		}
+		else{
+			//cerr << "Computing " << word << endl;
+			rep(i, 0, (int)boardWords.size()) {
+				fl sim = engine.similarity(boardWords[i].word, word);
+				v.push_back({sim, &boardWords[i]});
+			}
+			savedSimilarities[word]=v;
+		}
+		rep(i, 0, (int)boardWords.size()) {
+			fl sim = v[i].first;
 			if (boardWords[i].type == 'g')
 				sim += marginCivilians;
 			if (boardWords[i].type == 'o')
 				sim += marginOpponentWords;
 			if (boardWords[i].type == 'a')
 				sim += marginAssassins;
-			v.push_back({-sim, &boardWords[i]});
+			v[i].first = -sim;
 		}
 		sort(all(v), [&](const Pa &a, const Pa &b) { return a.first < b.first; });
 
@@ -367,18 +561,26 @@ struct Bot {
 		}
 	}
 
-	pair<string, int> getBestWord() {
-		vector<const string *> candidates = engine.getCommonWords(vocabularySize);
+	vector<pair<string, int> > getBestWords(int numWords, bool printDebug, double probabilityConsider) {
+		time_t startTime = clock();
+		sort(all(boardWords));
+		vector<const string *> candidates;
+		if(decentWords.empty())
+			candidates = engine.getCommonWords(vocabularySize);
+		else
+			candidates = decentWords;
 		priority_queue<pair<pair<fl, int>, const string *>> pq;
 		for (const string *candidate : candidates) {
+			if((rand()%1000)/1000.0 > probabilityConsider)
+				continue;
 			pair<fl, int> res = getWordScore(*candidate, false);
 			pq.push({{res.first, -res.second}, candidate});
 		}
 
 		vector<pair<pair<fl, int>, const string *>> topList;
 
-		// Extract the top 20 words that are not forbidden by the rules
-		while (topList.size() < 20 && !pq.empty()) {
+		// Extract the top numWords words that are not forbidden by the rules
+		while (topList.size() < numWords && !pq.empty()) {
 			auto pa = pq.top();
 			pq.pop();
 			if (!forbiddenWord(*pa.second))
@@ -389,21 +591,347 @@ struct Bot {
 		assert(!topList.empty());
 		const string &bestWord = *topList[0].second;
 		int bestCount = -topList[0].first.second;
-		getWordScore(bestWord, true);
+		if(printDebug){
+			getWordScore(bestWord, true);
+		}
 
 		// Print a list with the best clues
+		vector<pair<string, int> > bestWords;
 		rep(i, 0, (int)topList.size()) {
 			auto res = topList[i];
-			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first.first << "\t"
-				 << *res.second << " " << -res.first.second << endl;
+			if(printDebug){
+				cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first.first << "\t"
+					 << *res.second << " " << -res.first.second << endl;
+			}
+			bestWords.emplace_back(*res.second, -res.first.second);
 		}
 
 		int p = engine.popularity.at(bestWord);
-		cout << "The best clue found is " << bestWord << " " << bestCount << endl;
-		cout << bestWord << " is the " << p << orderSuffix(p);
+		if(printDebug){
+			cout << "The best clue found is " << bestWord << " " << bestCount << endl;
+			cout << bestWord << " is the " << p << orderSuffix(p);
+			cout << " most popular word" << endl;
+		}
+		double elapsedTime = (clock()-startTime+0.0)/CLOCKS_PER_SEC;
+		//cerr << "Probability " << probabilityConsider << " took " << elapsedTime << " s" << endl;
+		return bestWords;
+	}
 
-		cout << " most popular word" << endl;
-		return make_pair(bestWord, bestCount);
+	pair<string, int> getBestWord(bool printDebug, double probabilityConsider){
+		vector<pair<string, int> > v = getBestWords(20, printDebug, probabilityConsider);
+		return v[0];
+	}
+	
+	pair<string, int> getBestWord(bool printDebug){
+		return getBestWord(printDebug, 1.0);
+	}
+
+	char getWordColor(string word){
+		rep(i,0,(int)boardWords.size()){
+			if(boardWords[i].word == word){
+				return boardWords[i].type;
+			}
+		}
+		assert(0);
+	}
+
+	int simulateGuessing(State* state){
+		string guess = state->getGuess(state->turn);
+		if(guess == ""){
+#ifdef DEBUG_MCTS
+			cerr << "Stops guessing" << endl;
+#endif
+			return -2;
+		}
+#ifdef DEBUG_MCTS
+		cerr << "Guess " << guess << endl;
+#endif
+		int color = -1;
+		if(find(all(myWords), guess) != myWords.end()){
+			color=0;
+		}
+		else if(find(all(opponentWords), guess) != opponentWords.end()){
+			color=1;
+		}
+		
+		state->performGuess(guess, color, state->turn);
+		bool opponentWon = true;
+		for(string opponentWord : opponentWords){
+			bool exists = false;
+			for(string word : state->words){
+				if(word == opponentWord){
+					exists = true;
+					break;
+				}
+			}
+			if(exists){
+				opponentWon = false;
+				break;
+			}
+		}
+		if(opponentWon){
+#ifdef DEBUG_MCTS
+			cerr << "Incorrect" << endl;
+			cerr << "Opponent won" << endl;
+#endif
+			return 1;
+		}
+		vector<string>* goodWords = state->turn?&opponentWords:&myWords;
+		if(find(all(*goodWords), guess) == goodWords->end()){
+#ifdef DEBUG_MCTS
+			cerr << "Incorrect" << endl;
+#endif
+			if(find(all(assassinWords), guess) != assassinWords.end()){
+#ifdef DEBUG_MCTS
+				cerr << "Assassin" << endl;
+#endif
+				return !state->turn;
+			}
+			return -2;
+		}
+#ifdef DEBUG_MCTS
+		cerr << "Correct" << endl;
+#endif
+		bool IWon = true;
+		for(string myWord : myWords){
+			bool exists = false;
+			for(string word : state->words){
+				if(word == myWord){
+					exists = true;
+					break;
+				}
+			}
+			if(exists){
+				IWon = false;
+				break;
+			}
+		}
+		if(IWon){
+#ifdef DEBUG_MCTS
+			cerr << "I won" << endl;
+#endif
+			return 0;
+		}
+		return -1;
+	}
+
+	vector<string> intersection(vector<string> v1, vector<string> v2){
+		vector<string> ret;
+		rep(i,0,(int)v1.size()){
+			rep(j,0,(int)v2.size()){
+				if(v1[i] == v2[j]){
+					ret.push_back(v1[i]);
+					break;
+				}
+			}
+		}
+		return ret;
+	}
+
+	int simulate(State* state){
+		Bot tmpBot(engine);
+#ifdef DEBUG_MCTS
+		cerr << "It is now player " << state->turn << "'s turn" << endl;
+		state->printWords();
+#endif
+		if(state->turn == 0)
+			tmpBot.setWords(
+					intersection(myWords, state->words), 
+					intersection(opponentWords, state->words), 
+					intersection(greyWords, state->words), 
+					intersection(assassinWords, state->words));
+		else
+			tmpBot.setWords(
+					intersection(opponentWords, state->words), 
+					intersection(myWords, state->words), 
+					intersection(greyWords, state->words), 
+					intersection(assassinWords, state->words));
+		tmpBot.decentWords = decentWords;
+		pair<string, int> clue = tmpBot.getBestWord(false, 0.2);
+#ifdef DEBUG_MCTS
+		cerr << "Selected the clue " << clue.first << " " << clue.second << endl;
+#endif
+		state->acceptClue(clue, state->turn, engine);
+		rep(i,0,clue.second+1){
+			int res = simulateGuessing(state);
+			if(res == -2)
+				break;
+			if(res != -1)
+				return res;
+		}
+		state->turn = !state->turn;
+		return simulate(state);
+	}
+
+	struct ScoreEntry{
+		int timesVisited;
+		int score;
+
+		ScoreEntry(){
+			timesVisited = 0;
+			score = 0;
+		}
+
+		fl getScore(int totTimesVisited){
+			if(!timesVisited)
+				return 100;
+			return (score+0.0)/timesVisited + 1.4*sqrt(log(totTimesVisited)/timesVisited);
+		}
+	};
+
+
+	struct Node{
+		vector<pair<pair<string, int>, ScoreEntry> > children;
+		ScoreEntry score;
+
+		Node(){
+		}
+
+	};
+
+	map<State, Node*> stateMap;
+
+	int rec(Node* node, State state, SimilarityEngine &engine){
+#ifdef DEBUG_MCTS
+		cerr << "It is now player " << state.turn << "'s turn" << endl;
+		cerr << "In this state the win rate is " << node->score.score << "/" << node->score.timesVisited << endl;
+		state.printWords();
+#endif
+		if(node->score.timesVisited > 0){
+			node->score.timesVisited++;
+			fl bestScore;
+			int bestInd;
+			rep(i,0,(int)node->children.size()){
+				fl s = node->children[i].second.getScore(node->score.timesVisited);
+				if(!i || s > bestScore){
+					bestScore = s;
+					bestInd = i;
+				}
+			}
+			pair<string, int> clue = node->children[bestInd].first;
+#ifdef DEBUG_MCTS
+			cerr << "Selected the clue " << clue.first << " " << clue.second << endl;
+			cerr << "This clue has win rate " << node->children[bestInd].second.score << "/" << node->children[bestInd].second.timesVisited << endl;
+#endif
+			State tmpState = state;
+			tmpState.acceptClue(clue, state.turn, engine);
+			rep(i,0,clue.second+1){
+				int res = simulateGuessing(&tmpState);
+				if(res == -2)
+					break;
+				if(res != -1){
+					if(state.turn == res)
+						++node->score.score;
+					return res;
+				}
+			}
+			tmpState.turn = !state.turn;
+			auto it = stateMap.find(tmpState);
+			if(it == stateMap.end()){
+				stateMap[tmpState] = new Node();
+				it = stateMap.find(tmpState);
+			}
+			int res = rec(it->second, tmpState, engine);
+			if(state.turn == res){
+				node->score.score++;
+				node->children[bestInd].second.score++;
+			}
+			node->children[bestInd].second.timesVisited++;
+			return res;
+		}
+		else{
+			node->score.timesVisited++;
+			Bot tmpBot(engine);
+			if(state.turn == 0){
+				tmpBot.setWords(
+						intersection(myWords, state.words), 
+						intersection(opponentWords, state.words), 
+						intersection(greyWords, state.words), 
+						intersection(assassinWords, state.words));
+			}
+			else{
+				tmpBot.setWords(
+						intersection(opponentWords, state.words), 
+						intersection(myWords, state.words), 
+						intersection(greyWords, state.words), 
+						intersection(assassinWords, state.words));
+			}
+			tmpBot.decentWords = decentWords;
+			vector<pair<string, int> > bestWords = tmpBot.getBestWords(5, false, 1.0);
+			rep(i,0,(int)bestWords.size()){
+				node->children.emplace_back(bestWords[i], ScoreEntry());
+			}
+			pair<string, int> clue = node->children[0].first;
+#ifdef DEBUG_MCTS
+			cerr << "Selected the clue " << clue.first << " " << clue.second << endl;
+#endif
+			State tmpState = state;
+			tmpState.acceptClue(clue, state.turn, engine);
+			rep(i,0,clue.second+1){
+				int res = simulateGuessing(&tmpState);
+				if(res == -2)
+					break;
+				if(res != -1){
+					if(state.turn == res)
+						++node->score.score;
+					return res;
+				}
+			}
+			tmpState.turn = !state.turn;
+#ifdef DEBUG_MCTS
+			cerr << "Leaving tree" << endl;
+#endif
+			int res = simulate(&tmpState);
+			if(res == state.turn)
+				node->score.score++;
+			return res;
+		}
+	}
+
+	pair<string, int> getBestWordMCTS(State curState) {
+		getBestWord(false);
+		vector<const string *> candidates = engine.getCommonWords(vocabularySize);
+		decentWords.clear();
+		rep(i,0,(int)candidates.size()){
+			const vector<fl> &wordVec = engine.getVec(*candidates[i]);
+
+			rep(j, 0, boardWords.size()) {
+				fl sim = engine.similarity(boardWords[j].vec, wordVec);
+				if(sim > 0.4){
+					decentWords.push_back(candidates[i]);
+					break;
+				}
+			}
+		}
+		cerr << "Number of decent words: " << decentWords.size() << "/" << candidates.size() << endl;
+		Node root;
+		rep(j,0,1000){
+			rec(&root, curState, engine);
+			if(j%500 == 0 && j > 0){
+				cerr << "Stats after " << j << " simulations" << endl;
+				rep(i,0,(int)root.children.size()){
+					cerr << root.children[i].first.first << " " << root.children[i].first.second <<
+						" " << root.children[i].second.score << "/" << root.children[i].second.timesVisited <<
+						" = " << setprecision(4) << fixed << (0.0+root.children[i].second.score)/root.children[i].second.timesVisited << endl;
+				}
+			}
+		}
+		fl bestScore;
+		int bestInd;
+		cerr << "Final stats" << endl;
+		rep(i,0,(int)root.children.size()){
+			fl s = root.children[i].second.timesVisited;
+			cerr << root.children[i].first.first << " " << root.children[i].first.second <<
+				" " << root.children[i].second.score << "/" << root.children[i].second.timesVisited <<
+						" = " << setprecision(4) << fixed << (0.0+root.children[i].second.score)/root.children[i].second.timesVisited << endl;
+			if(!i || s > bestScore){
+				bestScore = s;
+				bestInd = i;
+			}
+		}
+		pair<string, int> bestClue = root.children[bestInd].first;
+		cerr << "Chose clue " << bestClue.first << " " << bestClue.second << endl;
+		return bestClue;
 	}
 };
 
@@ -412,6 +940,8 @@ class GameInterface {
 	Bot bot;
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
 	string myColor;
+	State curState;
+	bool useMCTS = false;
 
 	void commandReset() {
 		myWords.clear();
@@ -419,11 +949,15 @@ class GameInterface {
 		greyWords.clear();
 		assassinWords.clear();
 		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
+		curState.reset();
 	}
 
 	void commandSuggestWord() {
 		cout << "Thinking..." << endl;
-		bot.getBestWord();
+		if(useMCTS)
+			bot.getBestWordMCTS(curState);
+		else
+			bot.getBestWord(true);
 	}
 
 	void commandHelp() {
@@ -477,10 +1011,18 @@ class GameInterface {
 			string word;
 			cin >> word;
 			word = toLowerCase(word);
+			int color = -1;
+			if(find(all(myWords), word) != myWords.end()){
+				color=0;
+			}
+			else if(find(all(opponentWords), word) != opponentWords.end()){
+				color=1;
+			}
 			eraseFromVector(word, myWords);
 			eraseFromVector(word, opponentWords);
 			eraseFromVector(word, greyWords);
 			eraseFromVector(word, assassinWords);
+			curState.performGuess(word, color, curState.turn);
 		}
 
 		if (v != NULL) {
@@ -489,6 +1031,7 @@ class GameInterface {
 			word = toLowerCase(word);
 			if (engine.wordExists(word)) {
 				v->push_back(word);
+				curState.addWord(word);
 			} else {
 				cout << word << " was not found in the dictionary" << endl;
 			}
@@ -505,6 +1048,21 @@ class GameInterface {
 		}
 		pair<fl, int> res = bot.getWordScore(word, true);
 		cout << word << " " << res.second << " has score " << res.first << endl;
+	}
+
+	void commandMCTS() {
+		string state;
+		cin >> state;
+		state = toLowerCase(state);
+		if(state == "on"){
+			useMCTS = true;
+		}
+		else if(state == "off"){
+			useMCTS = false;
+		}
+		else{
+			cerr << "Cannot set useMCTS to " << state << ", use one of the value 'on' or 'off' instead" << endl;
+		}
 	}
 
 	string inputColor() {
@@ -566,6 +1124,9 @@ class GameInterface {
 			}
 			else if (command == "score") {
 				commandScore();
+			}
+			else if (command == "mcts") {
+				commandMCTS();
 			}
 			else {
 				cout << "Unknown command \"" << command << "\"" << endl;
