@@ -427,7 +427,7 @@ struct Bot {
 
 	pair<float, int> getWordScore(wordID word, bool debugPrint) {
 		if (debugPrint)
-			cout << "Printing statistics for \"" << word << "\"" << endl;
+			cout << "Printing statistics for \"" << engine.getWord(word) << "\"" << endl;
 
 		typedef pair<float, BoardWord *> Pa;
 		vector<Pa> v;
