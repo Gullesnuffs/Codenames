@@ -446,7 +446,7 @@ struct Bot {
 };
 
 class GameInterface {
-	Word2VecSimilarityEngine engine;
+	SimilarityEngine& engine;
 	Bot bot;
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
 	string myColor;
@@ -565,14 +565,9 @@ class GameInterface {
 	}
 
    public:
-	GameInterface() : bot(engine) {}
+	GameInterface(SimilarityEngine& engine) : engine(engine), bot(engine) {}
 
 	void run() {
-		if (!engine.load("data.bin")) {
-			cerr << "Failed to load data.bin" << endl;
-			return;
-		}
-
 		cout << "Type \"help\" for help" << endl;
 		cout << "My color (b/r): ";
 		myColor = inputColor();
@@ -613,7 +608,13 @@ class GameInterface {
 };
 
 int main() {
-	GameInterface interface;
+	Word2VecSimilarityEngine word2vecEngine;
+	if (!word2vecEngine.load("data.bin")) {
+		cerr << "Failed to load data.bin" << endl;
+		return 1;
+	}
+
+	GameInterface interface(word2vecEngine);
 	interface.run();
 	return 0;
 }
