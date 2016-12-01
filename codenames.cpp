@@ -166,7 +166,7 @@ public:
 			return vector<pair<float, string>>();
 		}
 		vector<pair<float, wordID>> ret;
-		for (int i = 0; i < words.size(); i++) {
+		rep(i, 0, (int)words.size()) {
 			ret.push_back(make_pair(-similarity(getID(s), wordID(i)), wordID(i)));
 		}
 		sort(all(ret));
