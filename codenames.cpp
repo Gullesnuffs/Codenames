@@ -59,7 +59,7 @@ struct SimilarityEngine {
 };
 
 struct Word2VecSimilarityEngine : SimilarityEngine {
-private:
+   private:
 	map<string, wordID> word2id;
 	vector<vector<float>> words;
 	vector<string> wordsStrings;
@@ -76,7 +76,7 @@ private:
 		return ret;
 	}
 
-public:
+   public:
 	/** Returns true if successful */
 	bool load(const char *fileName) {
 		int dimension, numberOfWords;
@@ -446,7 +446,7 @@ struct Bot {
 };
 
 class GameInterface {
-	SimilarityEngine& engine;
+	SimilarityEngine &engine;
 	Bot bot;
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
 	string myColor;
@@ -565,7 +565,7 @@ class GameInterface {
 	}
 
    public:
-	GameInterface(SimilarityEngine& engine) : engine(engine), bot(engine) {}
+	GameInterface(SimilarityEngine &engine) : engine(engine), bot(engine) {}
 
 	void run() {
 		cout << "Type \"help\" for help" << endl;
@@ -581,26 +581,19 @@ class GameInterface {
 
 			if (command.size() == 1 && string("rgbac-").find(command) != string::npos) {
 				commandModifyBoard(command);
-			}
-			else if (command == "play" || command == "go") {
+			} else if (command == "play" || command == "go") {
 				commandSuggestWord();
-			}
-			else if (command == "quit" || command == "exit") {
+			} else if (command == "quit" || command == "exit") {
 				break;
-			}
-			else if (command == "reset") {
+			} else if (command == "reset") {
 				commandReset();
-			}
-			else if (command == "help" || command == "\"help\"") {
+			} else if (command == "help" || command == "\"help\"") {
 				commandHelp();
-			}
-			else if (command == "board") {
+			} else if (command == "board") {
 				commandBoard();
-			}
-			else if (command == "score") {
+			} else if (command == "score") {
 				commandScore();
-			}
-			else {
+			} else {
 				cout << "Unknown command \"" << command << "\"" << endl;
 			}
 		}
