@@ -927,8 +927,9 @@ struct Bot {
 		decentWords.clear();
 		rep(i,0,(int)candidates.size()){
 			rep(j, 0, boardWords.size()) {
+				char type = boardWords[j].type;
 				float sim = engine.similarity(boardWords[j].id, candidates[i]);
-				if(sim > 0.4){
+				if((type == 'm' || type == 'o') && sim > 0.4){
 					decentWords.push_back(candidates[i]);
 					break;
 				}
