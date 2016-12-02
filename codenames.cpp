@@ -25,6 +25,7 @@ typedef vector<pii> vpi;
 
 /** Represents a single word or phrase in a similarity engine */
 enum wordID : int {};
+const wordID NoWord = wordID(-1);
 
 void eraseFromVector(string word, vector<string> &v) {
 	rep(i, 0, v.size()) {
@@ -56,6 +57,8 @@ struct SimilarityEngine {
 	virtual const string &getWord(wordID id) = 0;
 	virtual bool wordExists(const string &word) = 0;
 	virtual vector<wordID> getCommonWords(int vocabularySize) = 0;
+	virtual void precalculateSimilaritiesTo(vector<string> words) {
+	}
 	virtual ~SimilarityEngine() {}
 };
 
@@ -183,7 +186,7 @@ struct GraphSimilarityEngine {
 	class Node {
 	public:
 		string word;
-		vector<pair<float,Node*>> edges;
+		vector<pair<float,wordID>> edges;
 		int types;
 
 		bool canBeNoun() {
@@ -199,11 +202,11 @@ struct GraphSimilarityEngine {
 		}
 	};
 
-	SimilarityEngine word2vecEngine;
-	map<string, Node*> word2node;
-	vector<Node*> nodes;
+	Word2VecSimilarityEngine word2vecEngine;
+	map<string, wordID> word2node;
+	vector<Node> nodes;
 
-	GraphSimilarityEngine(SimilarityEngine word2vecEngine) : word2vecEngine(word2vecEngine) {}
+	GraphSimilarityEngine(Word2VecSimilarityEngine word2vecEngine) : word2vecEngine(word2vecEngine) {}
 
 	// @author Stack Overflow
 	void split(const string &s, char delim, vector<string> &elems) {
@@ -236,43 +239,62 @@ struct GraphSimilarityEngine {
 	    rtrim(s);
 	}
 
-	Node* getOrCreateNode(const string& word) {
-		auto it = word2node.find(word);
-		if (it == word2node.end()) {
-			auto node = new Node();
-			node->word = word;
-			nodes.push_back(node);
-			it = word2node.insert(make_pair(word, node)).first;
-		}
-		return it->second;
+	float similarity(wordID s1, wordID s2) {
+		return 0;
 	}
 
-	Node* getNode(string word) {
-		if (word2node.find(word) != word2node.end()) {
-			return word2node[word];
-		} else {
-			return nullptr;
+	wordID getID(const string &s) {
+#if DEBUG
+		if(word2node.find(s) == word2node.end()) {
+			cerr << "Failed to look up word " << s << endl;
 		}
+#endif
+		return word2node.at(s);
 	}
 
-	typedef map<Node*, pair<double, Node*>> SearchResult;
+	const string &getWord(wordID id) {
+		return nodes[id].word;
+	}
+
+	bool wordExists(const string &word) {
+		return word2node.find(word) != word2node.end();
+	}
+
+	vector<wordID> getCommonWords(int vocabularySize) {
+		return word2vecEngine.getCommonWords(vocabularySize);
+	}
+
+	void precalculateSimilaritiesTo(vector<string> words) {
+
+	}
+
+	struct SearchEdge {
+		double dist;
+		wordID parent;
+		int type;
+	};
+
+	typedef map<wordID, SearchEdge> SearchResult;
 
 	SearchResult search(string root, double maxDistance) {
-		auto rootNode = getNode(root);
-		map<Node*, pair<double, Node*>> distsAndParents;
-		priority_queue<pair<double,Node*>, vector<pair<double,Node*>>, greater<pair<double,Node*>>> que;
+		auto rootNode = getID(root);
+		map<wordID, SearchEdge> distsAndParents;
+		priority_queue<pair<double,wordID>, vector<pair<double,wordID>>, greater<pair<double,wordID>>> que;
 		que.push({0.0, rootNode});
-		distsAndParents[rootNode] = {0, nullptr};
+		distsAndParents[rootNode] = { 0.0, NoWord, 0 };
 
 		if (word2vecEngine.wordExists(root)) {
-			for (auto& commonWord : word2vecEngine.getCommonWords(10000)) {
-				auto node = getNode(*commonWord);
-				if (node != nullptr && node != rootNode) {
-					auto dist = word2vecEngine.similarity(root, *commonWord);
-					dist = abs(1 - dist);
-					auto cost = dist;
-					distsAndParents[node] = {cost, rootNode};
-					que.push({cost, node});
+			auto rootID = word2vecEngine.getID(root);
+			for (auto commonWord : word2vecEngine.getCommonWords(10000)) {
+				if (wordExists(word2vecEngine.getWord(commonWord))) {
+					auto node = getID(word2vecEngine.getWord(commonWord));
+					if (node != rootNode) {
+						auto dist = word2vecEngine.similarity(rootID, commonWord);
+						dist = abs(1 - dist) + 0.001;
+						auto cost = dist;
+						distsAndParents[node] = { cost, rootNode, 1 };
+						que.push({cost, node});
+					}
 				}
 			}
 		}
@@ -281,19 +303,22 @@ struct GraphSimilarityEngine {
 			auto p = que.top();
 			que.pop();
 			double dist = p.first;
-			auto& dipa = distsAndParents[p.second];
-			if (dipa.first < dist) {
+			wordID word = p.second;
+			Node& node = nodes[word];
+
+			auto& dipa = distsAndParents[word];
+			if (dipa.dist < dist) {
 				// Already visited
 				continue;
 			}
-			assert(dipa.first == dist);
+			assert(dipa.dist == dist);
 
-			for (auto edge : p.second->edges) {
+			for (auto edge : node.edges) {
 				auto newDist = dist + edge.first;
 				if (newDist > maxDistance) continue;
-				auto& dipa2 = distsAndParents[edge.second];
-				if (dipa2.second == nullptr || newDist < dipa2.first) {
-					dipa2 = {newDist, p.second};
+				auto it = distsAndParents.find(edge.second);
+				if (it == distsAndParents.end() || newDist < (*it).second.dist) {
+					distsAndParents[edge.second] = { newDist, word, 0 };
 					que.push({newDist, edge.second});
 				}
 			}
@@ -302,145 +327,60 @@ struct GraphSimilarityEngine {
 		return distsAndParents;
 	}
 
-	bool load(const char *fileName, const char *fileName2) {
-#ifdef SYNONYM_DATABASE
-		ifstream fin(fileName, ios::binary);
-		while(true) {
-			string word;
-			int meanings;
-			getline(fin, word, '|');
-			if (!fin) {
-				cerr << "Done" << endl;
-				break;
-			}
-			trim(word);
-			fin >> meanings;
+	static inline int readInt(ifstream& stream) {
+		int v;
+		stream.read((char*)&v, sizeof(v));
+		return v;
+	}
 
-			Node* node = getOrCreateNode(word);
-			
-			for (int i = 0; i < meanings; i++) {
-				string type;
-				fin.ignore(255, '(');
-				getline(fin, type, ')');
-				fin.ignore(255, '|');
-				string synonymString;
-				getline(fin, synonymString);
-
-				if (type == "noun") {
-					node->types |= 1 << 0;
-				} else if (type == "verb") {
-					node->types |= 1 << 1;
-				} else if (type == "adj") {
-					node->types |= 1 << 2;
-				} else if (type == "adv") {
-					// Eh, sort of like adj
-					node->types |= 1 << 2;
-				} else {
-					cerr << "Did not recognise type: " << type << endl;
-				}
+	bool load(const char *fileName) {
+		const int bufSize = 1 << 16;
+		char buffer[bufSize];
+		
+		auto fin = ifstream(fileName, ios::binary);
+		int numWords = readInt(fin);
+		nodes.resize(numWords);
+		cerr << "Reading index..." << endl;
+		for (int i = 0; i < numWords; i++) {
+			int wordLength = readInt(fin);
+			if (wordLength > bufSize || wordLength <= 0) {
+				cerr << "Invalid word length " << wordLength << endl;
+				return false;
 			}
+			fin.read(buffer, wordLength);
+			nodes[i].word.assign(buffer, wordLength);
+			word2node[nodes[i].word] = wordID(i);
+		}
+		
+		cerr << "Reading edges..." << endl;
+
+		int numEdges = readInt(fin);
+		for (int i = 0; i < numEdges; i++) {
+			int node1 = readInt(fin);
+			int node2 = readInt(fin);
+
+			float cost;
+			fin.read((char*)&cost, sizeof(cost));
+			nodes[node1].edges.push_back({cost, wordID(node2)});
 		}
 
-		// Read again, now with more information
-		fin = ifstream(fileName, ios::binary);
-		while(true) {
-			string word;
-			int meanings;
-			getline(fin, word, '|');
-			if (!fin) {
-				cerr << "Done" << endl;
-				break;
-			}
-			trim(word);
-			fin >> meanings;
-
-			Node* node = getOrCreateNode(word);
-			
-			for (int i = 0; i < meanings; i++) {
-				string type;
-				fin.ignore(255, '(');
-				getline(fin, type, ')');
-				fin.ignore(255, '|');
-				string synonymString;
-				getline(fin, synonymString);
-				vector<string> synonyms;
-				split(synonymString, '|', synonyms);
-
-				for (int j = 0; j < synonyms.size(); j++) {
-					bool isCategory = j == 0;
-					auto syn = synonyms[j];
-					trim(syn);
-					if (syn.size() == 0) continue;
-
-					node->edges.push_back({isCategory ? 1.5 : 2, getOrCreateNode(syn)});
-					getOrCreateNode(syn)->edges.push_back({isCategory ? 1.5 : 2, node});
-
-					vector<string> subWords;
-					split(syn, ' ', subWords);
-					if (subWords.size() > 1) {
-						int numNonAdj = 0;
-						for (auto sub : subWords) {
-							trim(sub);
-							if (sub.size() <= 2) continue;
-							auto subNode = getOrCreateNode(sub);
-							if (subNode->canBeVerb() || subNode->canBeNoun()) numNonAdj++;
-						}
-
-						if (numNonAdj == 1) {
-							for (auto sub : subWords) {
-								trim(sub);
-								if (sub.size() <= 2) continue;
-								auto subNode = getOrCreateNode(sub);
-								if (subNode->canBeVerb() || subNode->canBeNoun()) {
-									//cerr << "Adding edge " << node->word << " " << subNode->word << endl;
-									node->edges.push_back({2.2, subNode});
-									subNode->edges.push_back({2.2, node});
-								}
-							}
-						}
-					}
-				}
-				//cerr << type << ": " << synonyms << endl;
-			}
-			//cerr << word << endl;
-		}
-#else
-		int counter = 0;
-		auto fin = ifstream(fileName2, ios::binary);
-		cerr << "Loading..." << endl;
-		string word1;
-		string word2;
-		while(true) {
-			int weight;
-			getline(fin, word1, '\t');
-			getline(fin, word2, '\t');
-			fin >> weight;
-			// Newline
-			fin.ignore(1);
-
-			if (!fin) {
-				cerr << endl;
-				cerr << "Done" << endl;
-				cerr << "Read " << counter << " entries with " << nodes.size() << " nodes" << endl;
-				break;
-			}
-
-			counter++;
-			if ((counter % 100000) == 0) {
-				cerr << "\rRead " << counter << " entries...";
-			}
-
-			Node* node1 = getOrCreateNode(word1);
-			Node* node2 = getOrCreateNode(word2);
-			
-			node2->edges.push_back({ 1.0 / sqrt(weight), node1});
-			node1->edges.push_back({ 10.0 / sqrt(weight) + 0.5, node2});
-		}
-#endif
-
+		cerr << "Done" << endl;
 		return true;
 	}
+
+	int getPopularity(wordID id) {
+		// Forward request, might fail for some words though...
+		//return word2vecEngine.getPopularity(word2vecEngine.getWordID(getWord(id)));
+		return 0;
+	}
 };
+
+/** True if a is a super or substring of b or vice versa */
+bool superOrSubstring(const string &a, const string &b) {
+	auto lowerA = toLowerCase(a);
+	auto lowerB = toLowerCase(b);
+	return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
+}
 
 struct Bot {
 	// Give a similarity bonus to "bad" words
@@ -507,13 +447,6 @@ struct Bot {
 			word,
 			engine.getID(word)
 		});
-	}
-
-	/** True if a is a super or substring of b or vice versa */
-	bool superOrSubstring(const string &a, const string &b) {
-		auto lowerA = toLowerCase(a);
-		auto lowerB = toLowerCase(b);
-		return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
 	}
 
 	bool forbiddenWord(const string &word) {
@@ -873,15 +806,12 @@ int main() {
 
 	GameInterface interface(word2vecEngine);
 	#if true
-	SimilarityEngine word2vecEngine;
-	word2vecEngine.load("data.bin");
-
 	GraphSimilarityEngine engine(word2vecEngine);
-	engine.load("th_en_US_new.dat", "prunned-relations.txt");
+	engine.load("concept_data.bin");
 	cerr << "Searching..." << endl;
 	vector<string> targetWords { "teacher", "mine", "chest", "wind", "bug", "giant", "parachute", "lemon", "cold" };
-	//vector<string> targetWords = { "lead", "witch", "brush", "mercury", "march", "bolt", "board", "pilot", "nut" };
-	//vector<string> targetWords =  { "casino", "pass", "concert", "board", "queen", "hood", "ground", "cross", "court" };
+	//vector<string> targetWords = { "lead", "brush", "mercury", "march", "bolt", "board", "pilot" };
+	//vector<string> targetWords =  { "casino", "pass", "concert", "board", "hood", "ground", "cross", "court" };
 
 	/*auto res = engine.search("horse", 20);
 	for (auto node : res.dists) {
@@ -900,23 +830,37 @@ int main() {
 	}*/
 
 	vector<GraphSimilarityEngine::SearchResult> results;
+	set<wordID> visitedIDs;
 	for (auto tgWord : targetWords) {
 		cerr << "Searching target word " << tgWord << " (of " << targetWords.size() << ")" << endl;
-		results.push_back(engine.search(tgWord, 4.5));
+		results.push_back(engine.search(tgWord, 1.0));
 		cerr << "Reached " << results[results.size()-1].size() << " nodes" << endl;
+		for (auto pair : results.back()) {
+			visitedIDs.insert(pair.first);
+		}
 	}
 
 	cerr << "Evaluating..." << endl;
 
-	vector<pair<double, pair<int, GraphSimilarityEngine::Node*>>> scores;
-	for (auto root : engine.nodes) {
+	vector<pair<double, pair<int, wordID>>> scores;
+	for (wordID rootID : visitedIDs) {
 		int found = 0;
 		double sqrDistSum = 0.0;
 		vector<pair<double,int>> dists;
+		// TODO: Can be optimized
+		auto rootWord = engine.getWord(rootID);
+
+		bool invalidWord = false;
+		for (auto w : targetWords) {
+			invalidWord |= superOrSubstring(w, rootWord);
+		}
+
+		if (invalidWord) continue;
+
 		for (int j = 0; j < results.size(); j++) {
-			auto it = results[j].find(root);
+			auto it = results[j].find(rootID);
 			if (it != results[j].end()) {
-				dists.push_back({it->second.first, j});
+				dists.push_back({it->second.dist, j});
 			} else {
 				dists.push_back({1000.0, j});
 			}
@@ -925,15 +869,16 @@ int main() {
 
 		double accDist = 0.0;
 		for (int j = 0; j < dists.size(); j++) {
-			accDist += dists[j].first;
+			accDist += dists[j].first*dists[j].first;
 			double avgDist = accDist / j;
-			if (j > 1 && avgDist <= 5.0) {
+			if (j > 1 && avgDist <= 1.0) {
 				//cerr << "Found " << root->word << " at " << avgDist << endl;
-				scores.push_back({ avgDist, {j, root}});
+				scores.push_back({ avgDist, {j + 1, rootID}});
 			}
 		}
 	}
 
+	cerr << "Sorting results..." << endl;
 	sort(scores.begin(), scores.end());
 	for (int w = 0; w < min(50, (int)scores.size()); w++) {
 		auto& score = scores[w];
@@ -942,7 +887,7 @@ int main() {
 		auto root = score.second.second;
 		int count = score.second.first;
 
-		cerr << root->word << ": " << count << ": (dist: " << avgDist << ")" << endl;
+		cerr << engine.getWord(root) << ": " << count << ": (dist: " << avgDist << ")" << endl;
 
 
 		int found = 0;
@@ -951,7 +896,7 @@ int main() {
 		for (int j = 0; j < results.size(); j++) {
 			auto it = results[j].find(root);
 			if (it != results[j].end()) {
-				dists.push_back({it->second.first, j});
+				dists.push_back({it->second.dist, j});
 			} else {
 				dists.push_back({1000.0, j});
 			}
@@ -959,17 +904,24 @@ int main() {
 		sort(dists.begin(), dists.end());
 
 
-		for (int k = 0; k <= count; k++) {
+		for (int k = 0; k < count; k++) {
 			int index = dists[k].second;
 			auto& result = results[index];
 			auto tg = targetWords[index];
 			auto cnode = root;
 			if (result.find(cnode) != result.end()) {
 				cerr << "\t";
-				cerr << result[cnode].first << ": ";
-				while(cnode != nullptr) {
-					cerr << " -> " << cnode->word;
-					cnode = result[cnode].second;
+				cerr << result[cnode].dist << ": ";
+				while(cnode != NoWord) {
+					cerr << engine.getWord(cnode);
+					if (result[cnode].parent != NoWord) {
+						if (result[cnode].type == 0) {
+							cerr << " -> ";
+						} else {
+							cerr << " ~> ";
+						}
+					}
+					cnode = result[cnode].parent;
 				}
 				cerr << endl;
 			}
