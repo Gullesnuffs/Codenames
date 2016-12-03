@@ -394,6 +394,9 @@ struct Bot {
 	// Consider only the 50000 most common words
 	int vocabularySize = 50000;
 
+	// Decides how much the MCTS favours exploration
+	static constexpr float explorationCoefficient = 1.4f;
+
 	vector<wordID> decentWords;
 
 	SimilarityEngine &engine;
@@ -808,7 +811,7 @@ struct Bot {
 		float getScore(int totTimesVisited){
 			if(!timesVisited)
 				return 100;
-			return (score+0.0)/timesVisited + 1.4*sqrt(log(totTimesVisited)/timesVisited);
+			return (score+0.0)/timesVisited + explorationCoefficient*sqrt(log(totTimesVisited)/timesVisited);
 		}
 	};
 
@@ -890,7 +893,7 @@ struct Bot {
 						intersection(assassinWords, state.words));
 			}
 			tmpBot.decentWords = decentWords;
-			vector<pair<string, int> > bestWords = tmpBot.getBestWords(5, false, 1.0);
+			vector<pair<string, int> > bestWords = tmpBot.getBestWords(10, false, 1.0);
 			rep(i,0,(int)bestWords.size()){
 				node->children.emplace_back(bestWords[i], ScoreEntry());
 			}
@@ -929,7 +932,7 @@ struct Bot {
 			rep(j, 0, boardWords.size()) {
 				char type = boardWords[j].type;
 				float sim = engine.similarity(boardWords[j].id, candidates[i]);
-				if((type == 'g' || type == 'o') && sim > 0.4){
+				if((type == 'm' || type == 'o') && sim > 0.4){
 					decentWords.push_back(candidates[i]);
 					break;
 				}
@@ -946,6 +949,7 @@ struct Bot {
 						" " << root.children[i].second.score << "/" << root.children[i].second.timesVisited <<
 						" = " << setprecision(4) << fixed << (0.0+root.children[i].second.score)/root.children[i].second.timesVisited << endl;
 				}
+				cerr << endl;
 			}
 		}
 		float bestScore;
@@ -986,24 +990,31 @@ class GameInterface {
 
 	void commandSuggestWord() {
 		cout << "Thinking..." << endl;
-		if(useMCTS)
-			bot.getBestWordMCTS(curState);
-		else
+		curState.turn = 0;
+		if(useMCTS){
+			pair<string, int> clue = bot.getBestWordMCTS(curState);
+			curState.acceptClue(clue, 0, engine);
+		}
+		else{
 			bot.getBestWord(true);
+		}
 	}
 
 	void commandHelp() {
 		cout << "The following commands are available:" << endl << endl;
-		cout << "r <word>\t-\tAdd a red spy to the board" << endl;
-		cout << "b <word>\t-\tAdd a blue spy to the board" << endl;
-		cout << "c <word>\t-\tAdd a civilian to the board" << endl;
-		cout << "a <word>\t-\tAdd an assassin to the board" << endl;
-		cout << "- <word>\t-\tRemove a word from the board" << endl;
-		cout << "go\t\t-\tReceive clues" << endl;
-		cout << "reset\t\t-\tClear the board" << endl;
-		cout << "board\t\t-\tPrints the words currently on the board" << endl;
-		cout << "score <word>\t-\tCompute how good a given clue would be" << endl;
-		cout << "quit\t\t-\tTerminates the program" << endl;
+		cout << "r <word>\t\t-\tAdd a red spy to the board" << endl;
+		cout << "b <word>\t\t-\tAdd a blue spy to the board" << endl;
+		cout << "c <word>\t\t-\tAdd a civilian to the board" << endl;
+		cout << "a <word>\t\t-\tAdd an assassin to the board" << endl;
+		cout << "- <word>\t\t-\tRemove a word from the board" << endl;
+		cout << "go\t\t\t-\tReceive clues" << endl;
+		cout << "guess <word>\t\t-\tGuess that a word is your spy" << endl;
+		cout << "clue <word> <number>\t-\tTell the bot that the opponent team used the given clue" << endl;
+		cout << "mcts on/off\t\t-\tTell the bot whether to use Monte-Carlo Tree Search or not" << endl;
+		cout << "reset\t\t\t-\tClear the board" << endl;
+		cout << "board\t\t\t-\tPrint the words currently on the board" << endl;
+		cout << "score <word>\t\t-\tCompute how good a given clue would be" << endl;
+		cout << "quit\t\t\t-\tTerminate the program" << endl << endl;
 	}
 
 	void commandBoard() {
@@ -1069,6 +1080,82 @@ class GameInterface {
 			}
 		}
 		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
+	}
+	
+	void commandAcceptGuess() {
+		string word;
+		cin >> word;
+		word = toLowerCase(word);
+		int color = -1;
+		if(find(all(myWords), word) != myWords.end()){
+			color=0;
+		}
+		else if(find(all(opponentWords), word) != opponentWords.end()){
+			color=1;
+		}
+		else if(find(all(greyWords), word) != greyWords.end()){
+			color=2;
+		}
+		else if(find(all(assassinWords), word) != assassinWords.end()){
+			color=3;
+		}
+		else{
+			cerr << "The word" << word << " is not on the table" << endl;
+			return;
+		}
+		eraseFromVector(word, myWords);
+		eraseFromVector(word, opponentWords);
+		eraseFromVector(word, greyWords);
+		eraseFromVector(word, assassinWords);
+		curState.performGuess(word, color, curState.turn);
+		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
+		if(color == 3){
+			cerr << word << " is the assassin. Team ";
+			if(curState.turn == (myColor == "b"))
+				cerr << "blue";
+			else
+				cerr << "red";
+			cerr << " won" << endl;
+		}
+		else if(color != curState.turn){
+			curState.turn = !curState.turn;
+			cerr << "The guess " << word << " was incorrect, it is now the ";
+			if(curState.turn != (myColor == "b"))
+				cerr << "blue";
+			else
+				cerr << "red";
+			cerr << " spymaster's turn" << endl;
+		}
+		else{
+			cerr << "Correct" << endl;
+		}
+	}
+
+	void commandAcceptClue(){
+		string word;
+		int number;
+		cin >> word >> number;
+		word = toLowerCase(word);
+		curState.turn = 1;
+		if(!engine.wordExists(word)){
+			cerr << "Unknown word '" << word << "'. Ignoring the clue" << endl;
+			return;
+		}
+		if(number > (int)opponentWords.size()){
+			cerr << "The number " << number << " is greater than the number of words remaining" << endl;
+			cerr << "The remaining words are:";
+			rep(i,0,(int)(opponentWords.size())){
+				cerr << " " << opponentWords[i];
+			}
+			cerr << endl;
+			cerr << "Ignoring the clue" << endl;
+			return;
+		}
+		if(number < 0){
+			cerr << "The number cannot be negative. Ignoring the clue" << endl;
+			return;
+		}
+		curState.acceptClue(make_pair(word, number), 1, engine);
 	}
 
 	void commandScore() {
@@ -1149,6 +1236,10 @@ class GameInterface {
 				commandScore();
 			} else if (command == "mcts") {
 				commandMCTS();
+			} else if (command == "clue" || command == "opponent") {
+				commandAcceptClue();
+			} else if (command == "guess") {
+				commandAcceptGuess();
 			} else {
 				cout << "Unknown command \"" << command << "\"" << endl;
 			}
