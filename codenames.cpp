@@ -48,7 +48,7 @@ float sigmoid(float x) {
 }
 
 struct SimilarityEngine {
-	virtual bool load(const char *fileName, bool quiet) = 0;
+	virtual bool load(const string &fileName, bool verbose) = 0;
 	virtual float similarity(wordID fixedWord, wordID dynWord) = 0;
 	virtual int getPopularity(wordID id) = 0;
 	virtual wordID getID(const string &s) = 0;
@@ -93,7 +93,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 
    public:
 	/** Returns true if successful */
-	bool load(const char *fileName, bool quiet) {
+	bool load(const string &fileName, bool verbose) {
 		int dimension, numberOfWords;
 		modelid = formatVersion = 0;
 		ifstream fin(fileName, ios::binary);
@@ -108,7 +108,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			cerr << "Failed to load " << fileName << endl;
 			return false;
 		}
-		if (!quiet) {
+		if (verbose) {
 			cerr << "Loading word2vec (" << numberOfWords << " words, "
 				<< dimension << " dimensions, model " << modelid
 				<< '.' << formatVersion << ")... " << flush;
@@ -155,7 +155,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 				wordNorms[i] = pow(wordNorms[i], 0.4f);
 			}
 		}
-		if (!quiet) {
+		if (verbose) {
 			cerr << "done!" << endl;
 		}
 		return true;
@@ -623,11 +623,9 @@ class GameInterface {
    public:
 	GameInterface(SimilarityEngine &engine) : engine(engine), bot(engine) {}
 
-	void run(bool quiet) {
-		if (!quiet) {
-			cout << "Type \"help\" for help" << endl;
-			cout << "My color (b/r): ";
-		}
+	void run() {
+		cout << "Type \"help\" for help" << endl;
+		cout << "My color (b/r): ";
 		myColor = inputColor();
 
 		while (true) {
@@ -658,15 +656,99 @@ class GameInterface {
 	}
 };
 
+string escapeJSON(const string &s) {
+	string res;
+	auto hex = [](int c) -> char {
+		if (c < 10) return (char)('0' + c);
+		else return (char)('a' + c - 10);
+	};
+	trav(c, s) {
+		if (c < 32 || c == 0x7f || c == '\\' || c == '"') {
+			res += "\\u00";
+			res += hex(c / 16);
+			res += hex(c % 16);
+		} else {
+			res += c;
+		}
+	}
+	return res;
+}
+
+void batchMain() {
+	auto fail = [](const char *message) {
+		cout << "{\"status\": 0, \"message\": \"" << message << "\"}";
+		exit(0);
+	};
+
+	try {
+		cin.exceptions(ios::failbit | ios::eofbit | ios::badbit);
+
+		string engine;
+		cin >> engine;
+		if (engine == "glove") engine = "models/glove.840B.330d.bin";
+		else if (engine == "conceptnet") engine = "models/conceptnet.bin";
+		else fail("Invalid engine parameter.");
+
+		Word2VecSimilarityEngine word2vecEngine;
+		if (!word2vecEngine.load(engine, false))
+			fail("Unable to load similarity engine.");
+
+		Bot bot(word2vecEngine);
+
+		char color;
+		cin >> color;
+		if (color != 'r' && color != 'b')
+			fail("Invalid color.");
+
+		string type;
+		while (cin >> type && type != "go") {
+			Bot::CardType type2;
+			if (type == string(1, color)) type2 = Bot::CardType::MINE;
+			else if (type == "b" || type == "r") type2 = Bot::CardType::OPPONENT;
+			else if (type == "c") type2 = Bot::CardType::CIVILIAN;
+			else if (type == "a") type2 = Bot::CardType::ASSASSIN;
+			else { fail("Invalid type."); abort(); }
+
+			string word;
+			cin >> word;
+			if (!bot.engine.wordExists(word))
+				fail("Unknown word, sorry. :(");
+
+			bot.addBoardWord(type2, word);
+		}
+
+		int index;
+		cin >> index;
+		if (index < 0) fail("Invalid index");
+		vector<Bot::Result> results = bot.findBestWords(index+1);
+
+		if (index >= (int)results.size()) {
+			cout << "{\"status\": 1, \"message\": \"No more clues.\"}";
+			return;
+		}
+
+		string w = results[index].word;
+		int count = results[index].number;
+		cout << "{\"status\": 2, \"message\": \"Success.\", "
+			<< "\"word\": \"" << escapeJSON(w) << "\", \"count\": " << count << "}";
+	} catch (ios::failure e) {
+		fail("Incomplete message.");
+	}
+}
+
 int main(int argc, char** argv) {
-	bool quiet = (argc == 2 && argv[1] == string("--quiet"));
+	if (argc == 2 && argv[1] == string("--batch")) {
+		batchMain();
+		return 0;
+	}
+
 	Word2VecSimilarityEngine word2vecEngine;
-	if (!word2vecEngine.load("data.bin", quiet)) {
+	if (!word2vecEngine.load("data.bin", true)) {
 		cerr << "Failed to load data.bin" << endl;
 		return 1;
 	}
 
 	GameInterface interface(word2vecEngine);
-	interface.run(quiet);
+	interface.run();
 	return 0;
 }
