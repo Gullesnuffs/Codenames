@@ -60,9 +60,11 @@ struct SimilarityEngine {
 
 struct Word2VecSimilarityEngine : SimilarityEngine {
    private:
+	int formatVersion, modelid;
 	map<string, wordID> word2id;
 	vector<vector<float>> words;
 	vector<string> wordsStrings;
+	vector<float> wordNorms;
 
 	/** Similarity between two word vectors.
 	 * Implemented as an inner product.
@@ -79,9 +81,15 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
    public:
 	/** Returns true if successful */
 	bool load(const char *fileName, bool quiet) {
-		int dimension, numberOfWords;
+		int modelid = 0, dimension, numberOfWords;
+		formatVersion = 0;
 		ifstream fin(fileName, ios::binary);
 		fin.read((char *)&numberOfWords, sizeof numberOfWords);
+		if (fin && numberOfWords == -1) {
+			fin.read((char *)&formatVersion, sizeof formatVersion);
+			fin.read((char *)&modelid, sizeof modelid);
+			fin.read((char *)&numberOfWords, sizeof numberOfWords);
+		}
 		fin.read((char *)&dimension, sizeof dimension);
 		if (!fin) {
 			cerr << "Failed to load " << fileName << endl;
@@ -89,16 +97,19 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		}
 		if (!quiet) {
 			cerr << "Loading word2vec (" << numberOfWords << " words, "
-				<< dimension << " dimensions)... " << flush;
+				<< dimension << " dimensions, model " << modelid
+				<< '.' << formatVersion << ")... " << flush;
 		}
 
 		const int bufSize = 1 << 16;
+		float norm;
 		char buf[bufSize];
 		string word;
 		vector<float> values(dimension);
 		vector<float> valuesd;
 		words.resize(numberOfWords);
 		wordsStrings.resize(numberOfWords);
+		wordNorms.resize(numberOfWords);
 		rep(i, 0, numberOfWords) {
 			int len;
 			fin.read((char *)&len, sizeof len);
@@ -111,6 +122,11 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 				return false;
 			}
 			fin.read(buf, len);
+			if (formatVersion >= 1) {
+				fin.read((char *)&norm, sizeof norm);
+			} else {
+				norm = 1.0f;
+			}
 			fin.read((char *)values.data(), dimension * sizeof(float));
 			if (!fin) {
 				cerr << "failed at reading entry " << i << endl;
@@ -121,6 +137,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			words[i] = move(valuesd);
 			wordsStrings[i] = word;
 			word2id[word] = wordID(i);
+			wordNorms[i] = norm;
 		}
 		if (!quiet) {
 			cerr << "done!" << endl;

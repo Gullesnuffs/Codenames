@@ -41,6 +41,7 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 
 	struct Word {
 		string word;
+		float norm;
 		vector<float> vec;
 	};
 
@@ -54,18 +55,19 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 		iss >> w.word;
 		if (count >= limit && !wordlist.count(w.word))
 			continue;
-		double length = 0;
+		double norm = 0;
 		double x;
 		if (dim != -1)
 			w.vec.reserve(dim);
 		while (iss >> x) {
 			w.vec.push_back((float)x);
-			length += x*x;
+			norm += x*x;
 		}
 		if (dim == -1) dim = sz(w.vec);
 		else assert(sz(w.vec) == dim);
-		length = 1 / sqrt(length);
-		trav(x, w.vec) x = (float)(x * length);
+		w.norm = (float)norm;
+		double mu = 1 / sqrt(norm);
+		trav(x, w.vec) x = (float)(x * mu);
 		words.push_back(w);
 		wordlist.erase(w.word);
 		count++;
@@ -81,12 +83,18 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 	}
 
 	ofstream fout(outFile, ios::binary);
+	int sentinel = -1;
+	int version = 1, modelid = 1;
+	fout.write((char*)&sentinel, sizeof sentinel);
+	fout.write((char*)&version, sizeof version);
+	fout.write((char*)&modelid, sizeof modelid);
 	fout.write((char*)&count, sizeof count);
 	fout.write((char*)&dim, sizeof dim);
 	trav(w, words) {
 		int len = sz(w.word);
 		fout.write((char*)&len, sizeof len);
-		fout.write(w.word.data(), w.word.size());
+		fout.write(w.word.data(), len);
+		fout.write((char*)&w.norm, sizeof(float));
 		fout.write((char*)w.vec.data(), dim * sizeof(float));
 	}
 	fout.close();
