@@ -152,7 +152,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			word2id[word] = wordID(i);
 			wordNorms[i] = norm;
 			if (modelid == Models::GLOVE) {
-				wordNorms[i] = pow(wordNorms[i], 0.4);
+				wordNorms[i] = pow(wordNorms[i], 0.4f);
 			}
 		}
 		if (!quiet) {
@@ -173,11 +173,11 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 	}
 
 	float similarity(wordID fixedWord, wordID dynWord) {
-		double sim = similarity(words[fixedWord], words[dynWord]);
+		float sim = similarity(words[fixedWord], words[dynWord]);
 		if (modelid == Models::GLOVE) {
-			return sim * wordNorms[dynWord] / 4.5;
+			return sim * wordNorms[dynWord] / 4.5f;
 		} else if (modelid == Models::CONCEPTNET) {
-			return (sim <= 0 ? sim : pow(sim, 0.8) * 1.6);
+			return (sim <= 0 ? sim : pow(sim, 0.8f) * 1.6f);
 		} else {
 			return sim;
 		}
