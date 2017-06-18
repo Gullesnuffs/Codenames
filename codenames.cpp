@@ -49,11 +49,12 @@ float sigmoid(float x) {
 
 struct SimilarityEngine {
 	virtual bool load(const char *fileName, bool quiet) = 0;
-	virtual float similarity(wordID s1, wordID s2) = 0;
+	virtual float similarity(wordID fixedWord, wordID dynWord) = 0;
 	virtual int getPopularity(wordID id) = 0;
 	virtual wordID getID(const string &s) = 0;
 	virtual const string &getWord(wordID id) = 0;
 	virtual bool wordExists(const string &word) = 0;
+	virtual float stat(wordID s) = 0;
 	virtual vector<wordID> getCommonWords(int vocabularySize) = 0;
 	virtual ~SimilarityEngine() {}
 };
@@ -64,10 +65,15 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 	map<string, wordID> word2id;
 	vector<vector<float>> words;
 	vector<string> wordsStrings;
+
+	// All word vectors are stored normalized -- wordNorms holds their original norms.
+	// In some embeddings, words that have more (specific) meanings have higher norms.
 	vector<float> wordNorms;
+	vector<float> wordScores;
 
 	/** Similarity between two word vectors.
-	 * Implemented as an inner product.
+	 * Implemented as an inner product. This is the main bottleneck of the
+	 * engine, and it gains a lot from being compiled with "-O3 -mavx".
 	 */
 	float similarity(const vector<float> &v1, const vector<float> &v2) {
 		float ret = 0;
@@ -76,6 +82,11 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			ret += v1[i] * v2[i];
 		}
 		return ret;
+	}
+
+	/** Arbitrary statistic, in this case the word norm. */
+	float stat(wordID s) {
+		return wordNorms[s];
 	}
 
    public:
@@ -110,6 +121,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		words.resize(numberOfWords);
 		wordsStrings.resize(numberOfWords);
 		wordNorms.resize(numberOfWords);
+		wordScores.resize(numberOfWords);
 		rep(i, 0, numberOfWords) {
 			int len;
 			fin.read((char *)&len, sizeof len);
@@ -138,6 +150,10 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			wordsStrings[i] = word;
 			word2id[word] = wordID(i);
 			wordNorms[i] = norm;
+			wordScores[i] = 1;
+			if (modelid == 1) { // glove
+				wordScores[i] = pow(wordNorms[i], 0.4) / 4.5;
+			}
 		}
 		if (!quiet) {
 			cerr << "done!" << endl;
@@ -156,8 +172,8 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		return ret;
 	}
 
-	float similarity(wordID s1, wordID s2) {
-		return similarity(words[s1], words[s2]);
+	float similarity(wordID fixedWord, wordID dynWord) {
+		return similarity(words[fixedWord], words[dynWord]) * wordScores[dynWord];
 	}
 
 	/** ID representing a particular word */
@@ -454,6 +470,7 @@ struct Bot {
 		rep(i, 0, (int)topList.size()) {
 			auto res = topList[i];
 			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first.first << "\t"
+				 << engine.stat(res.second) << "\t"
 				 << engine.getWord(res.second) << " " << -res.first.second << endl;
 		}
 
