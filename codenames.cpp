@@ -65,11 +65,13 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 	map<string, wordID> word2id;
 	vector<vector<float>> words;
 	vector<string> wordsStrings;
+	enum Models {
+		GLOVE = 1, CONCEPTNET = 2
+	};
 
 	// All word vectors are stored normalized -- wordNorms holds their original norms.
 	// In some embeddings, words that have more (specific) meanings have higher norms.
 	vector<float> wordNorms;
-	vector<float> wordScores;
 
 	/** Similarity between two word vectors.
 	 * Implemented as an inner product. This is the main bottleneck of the
@@ -92,8 +94,8 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
    public:
 	/** Returns true if successful */
 	bool load(const char *fileName, bool quiet) {
-		int modelid = 0, dimension, numberOfWords;
-		formatVersion = 0;
+		int dimension, numberOfWords;
+		modelid = formatVersion = 0;
 		ifstream fin(fileName, ios::binary);
 		fin.read((char *)&numberOfWords, sizeof numberOfWords);
 		if (fin && numberOfWords == -1) {
@@ -121,7 +123,6 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		words.resize(numberOfWords);
 		wordsStrings.resize(numberOfWords);
 		wordNorms.resize(numberOfWords);
-		wordScores.resize(numberOfWords);
 		rep(i, 0, numberOfWords) {
 			int len;
 			fin.read((char *)&len, sizeof len);
@@ -150,9 +151,8 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			wordsStrings[i] = word;
 			word2id[word] = wordID(i);
 			wordNorms[i] = norm;
-			wordScores[i] = 1;
-			if (modelid == 1) { // glove
-				wordScores[i] = pow(wordNorms[i], 0.4) / 4.5;
+			if (modelid == Models::GLOVE) {
+				wordNorms[i] = pow(wordNorms[i], 0.4);
 			}
 		}
 		if (!quiet) {
@@ -173,7 +173,14 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 	}
 
 	float similarity(wordID fixedWord, wordID dynWord) {
-		return similarity(words[fixedWord], words[dynWord]) * wordScores[dynWord];
+		double sim = similarity(words[fixedWord], words[dynWord]);
+		if (modelid == Models::GLOVE) {
+			return sim * wordNorms[dynWord] / 4.5;
+		} else if (modelid == Models::CONCEPTNET) {
+			return (sim <= 0 ? sim : pow(sim, 0.8) * 1.6);
+		} else {
+			return sim;
+		}
 	}
 
 	/** ID representing a particular word */

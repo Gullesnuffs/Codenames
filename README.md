@@ -5,15 +5,14 @@ To use this program, you need to do the following:
 
 1. Download the C++ source.
 
-2. Compile it using (for instance) `g++ -std=c++11 -Ofast codenames.cpp -o codenames`
+2. Compile it using (for instance) `g++ -std=c++11 -Ofast -march=native codenames.cpp -o codenames`
 
 3. Take any binary word2vec-like model from `models/` and copy it to `data.bin`.
-   Alternatively, download one in text format from http://nlp.stanford.edu/projects/glove/ (glove.840B.300d works well), and convert it to binary format using `preprocess.cpp`.
-   Capping to ~50000 words is reasonable.
+   Alternatively, download one in text format from e.g. http://nlp.stanford.edu/projects/glove/ (glove.840B.300d works well), and convert it to binary format using `preprocess.cpp`.
 
 4. Run the program!
 
-# Example run
+## Example run
 ```
 Loading word2vec (200000 words, 300 dimensions)... done!
 Type "help" for help
@@ -95,3 +94,11 @@ Printing statistics for "holidays"
 The best clue found is holidays 4
 holidays is the 4406th most popular word
 ```
+
+## License
+
+TODO. (Probably MIT or something?)
+
+`models/glove.840B.330d.bin` is from https://nlp.stanford.edu/projects/glove/, available under [Public Domain Dedication and License](https://opendatacommons.org/licenses/pddl/1.0/).
+
+`models/conceptnet.bin` is from https://github.com/commonsense/conceptnet-numberbatch, available under [CC-By-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
