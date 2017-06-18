@@ -223,6 +223,8 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 };
 
 struct Bot {
+	enum class CardType { MINE, OPPONENT, CIVILIAN, ASSASSIN };
+
 	// Give a similarity bonus to "bad" words
 	float marginCivilians = 0.02f;
 	float marginOpponentWords = 0.04f;
@@ -304,10 +306,13 @@ struct Bot {
 		return false;
 	}
 
-	pair<float, int> getWordScore(wordID word, bool debugPrint) {
-		if (debugPrint)
-			cout << "Printing statistics for \"" << engine.getWord(word) << "\"" << endl;
+	struct ValuationItem {
+		float score;
+		string word;
+		CardType type;
+	};
 
+	pair<float, int> getWordScore(wordID word, vector<ValuationItem> *valuation) {
 		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
@@ -323,27 +328,19 @@ struct Bot {
 		}
 		sort(all(v), [&](const Pa &a, const Pa &b) { return a.first < b.first; });
 
-		if (debugPrint) {
-			rep(i, 0, v.size()) {
-				cout << setprecision(6) << fixed << -v[i].first << "\t" << v[i].second->word << " ";
-				switch (v[i].second->type) {
-					case 'm':
-						cout << "(My)" << endl;
-						break;
-					case 'o':
-						cout << "(Opponent)" << endl;
-						break;
-					case 'g':
-						cout << "(Civilian)" << endl;
-						break;
-					case 'a':
-						cout << "(Assassin)" << endl;
-						break;
-					default:
-						assert(0);
+		if (valuation) {
+			valuation->clear();
+			trav(it, v) {
+				CardType type;
+				switch (it.second->type) {
+					case 'm': type = CardType::MINE; break;
+					case 'o': type = CardType::OPPONENT; break;
+					case 'g': type = CardType::CIVILIAN; break;
+					case 'a': type = CardType::ASSASSIN; break;
+					default: abort();
 				}
+				valuation->push_back({-it.first, it.second->word, type});
 			}
-			cout << endl;
 		}
 
 		// Compute a fuzzy score
@@ -413,10 +410,6 @@ struct Bot {
 		return make_pair(bestScore, bestCount);
 	}
 
-	pair<float, int> getWordScore(const string &word, bool debugPrint) {
-		return getWordScore(engine.getID(word), debugPrint);
-	}
-
 	void setWords(const vector<string> &_myWords,
 				  const vector<string> &_opponentWords,
 				  const vector<string> &_greyWords,
@@ -436,65 +429,77 @@ struct Bot {
 		trav(w, assassinWords) addBoardWord('a', w);
 	}
 
-	/** Returns suffix on number such as 'th' for 5 or 'nd' for 2 */
-	string orderSuffix(int p) {
-		if (p % 10 == 1 && p % 100 != 11) {
-			return "st";
-		} else if (p % 10 == 2 && p % 100 != 12) {
-			return "nd";
-		} else if (p % 10 == 3 && p % 100 != 13) {
-			return "rd";
-		} else {
-			return "th";
-		}
-	}
+	struct Result {
+		string word;
+		int number;
+		float score;
+		vector<ValuationItem> valuations;
+	};
 
-	pair<string, int> getBestWord() {
+	vector<Result> findBestWords(int count = 20) {
 		vector<wordID> candidates = engine.getCommonWords(vocabularySize);
 		priority_queue<pair<pair<float, int>, wordID>> pq;
 		for (wordID candidate : candidates) {
-			pair<float, int> res = getWordScore(candidate, false);
+			pair<float, int> res = getWordScore(candidate, nullptr);
 			pq.push({{res.first, -res.second}, candidate});
 		}
 
-		vector<pair<pair<float, int>, wordID>> topList;
+		vector<Result> res;
 
-		// Extract the top 20 words that are not forbidden by the rules
-		while (topList.size() < 20 && !pq.empty()) {
+		// Extract the top 'count' words that are not forbidden by the rules
+		while (res.size() < count && !pq.empty()) {
 			auto pa = pq.top();
 			pq.pop();
-			if (!forbiddenWord(engine.getWord(pa.second)))
-				topList.push_back(pa);
+			if (!forbiddenWord(engine.getWord(pa.second))) {
+				float score = pa.first.first;
+				int number = -pa.first.second;
+				wordID word = pa.second;
+				vector<ValuationItem> val;
+				getWordScore(word, &val);
+				res.push_back(Result{engine.getWord(word), number, score, val});
+			}
 		}
 
-		// Print how the score of the best word was computed
-		assert(!topList.empty());
-		wordID bestWord = topList[0].second;
-		int bestCount = -topList[0].first.second;
-		getWordScore(bestWord, true);
-
-		// Print a list with the best clues
-		rep(i, 0, (int)topList.size()) {
-			auto res = topList[i];
-			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.first.first << "\t"
-				 << engine.stat(res.second) << "\t"
-				 << engine.getWord(res.second) << " " << -res.first.second << endl;
-		}
-
-		int p = engine.getPopularity(bestWord);
-		cout << "The best clue found is " << engine.getWord(bestWord) << " " << bestCount << endl;
-		cout << engine.getWord(bestWord) << " is the " << p << orderSuffix(p);
-
-		cout << " most popular word" << endl;
-		return make_pair(engine.getWord(bestWord), bestCount);
+		return res;
 	}
 };
 
+/** Returns suffix on number such as 'th' for 5 or 'nd' for 2 */
+string orderSuffix(int p) {
+	if (p % 10 == 1 && p % 100 != 11) {
+		return "st";
+	} else if (p % 10 == 2 && p % 100 != 12) {
+		return "nd";
+	} else if (p % 10 == 3 && p % 100 != 13) {
+		return "rd";
+	} else {
+		return "th";
+	}
+}
+
+
 class GameInterface {
+	typedef Bot::ValuationItem ValuationItem;
+	typedef Bot::Result Result;
+	typedef Bot::CardType CardType;
 	SimilarityEngine &engine;
 	Bot bot;
 	vector<string> myWords, opponentWords, greyWords, assassinWords;
 	string myColor;
+
+	void printValuation(const string &word, const vector<Bot::ValuationItem> &valuation) {
+		cout << "Printing statistics for \"" << word << "\"" << endl;
+		map<CardType, string> desc;
+		desc[CardType::MINE] = "(My)";
+		desc[CardType::OPPONENT] = "(Opponent)";
+		desc[CardType::CIVILIAN] = "(Civilian)";
+		desc[CardType::ASSASSIN] = "(Assassin)";
+		trav(item, valuation) {
+			cout << setprecision(6) << fixed << item.score << "\t";
+			cout << item.word << " " << desc[item.type] << endl;
+		}
+		cout << endl;
+	}
 
 	void commandReset() {
 		myWords.clear();
@@ -506,7 +511,28 @@ class GameInterface {
 
 	void commandSuggestWord() {
 		cout << "Thinking..." << endl;
-		bot.getBestWord();
+		vector<Result> results = bot.findBestWords();
+		if (results.empty()) {
+			cout << "Not a clue." << endl;
+		} else {
+			Result &best = results[0];
+			printValuation(best.word, best.valuations);
+
+			// Print a list with the best clues
+			rep(i, 0, (int)results.size()) {
+				auto res = results[i];
+				cout << (i + 1) << "\t"
+					<< setprecision(3) << fixed << res.score << "\t"
+					<< engine.stat(engine.getID(res.word)) << "\t"
+					<< res.word << " " << res.number << endl;
+			}
+			cout << endl;
+
+			int p = engine.getPopularity(engine.getID(best.word));
+			cout << "The best clue found is " << best.word << " " << best.number << endl;
+			cout << best.word << " is the " << p << orderSuffix(p)
+				<< " most popular word" << endl;
+		}
 	}
 
 	void commandHelp() {
@@ -586,7 +612,9 @@ class GameInterface {
 			cout << word << " was not found in the dictionary" << endl;
 			return;
 		}
-		pair<float, int> res = bot.getWordScore(word, true);
+		vector<ValuationItem> val;
+		pair<float, int> res = bot.getWordScore(engine.getID(word), &val);
+		printValuation(word, val);
 		cout << word << " " << res.second << " has score " << res.first << endl;
 	}
 
