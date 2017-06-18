@@ -97,6 +97,7 @@ void processWord2Vec(const char* inFile, const char* popFile, const char* outFil
 		istringstream iss(line);
 		string word;
 		iss >> word;
+		assert(!popularWords.count(word) || wordlist.count(word));
 		popularWords[word] = popcount++;
 		if (sz(popularWords) == limit)
 			break;
@@ -123,9 +124,11 @@ void processWord2Vec(const char* inFile, const char* popFile, const char* outFil
 		assert(ind != string::npos && ind != 0);
 		Word w;
 		w.word = line.substr(0, ind);
-		auto index = popularWords.find(w.word);
-		if (index == popularWords.end())
+		auto indexit = popularWords.find(w.word);
+		if (indexit == popularWords.end())
 			continue;
+		int index = indexit->second;
+		popularWords.erase(indexit);
 
 		double norm = 0;
 		if (dim != -1)
@@ -145,7 +148,7 @@ void processWord2Vec(const char* inFile, const char* popFile, const char* outFil
 		double mu = 1 / sqrt(norm);
 		trav(x, w.vec) x = (float)(x * mu);
 		wordlist.erase(w.word);
-		words[index->second] = move(w);
+		words[index] = move(w);
 		count++;
 		if (count == popcount)
 			break;
