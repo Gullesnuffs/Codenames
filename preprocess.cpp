@@ -45,7 +45,6 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 	};
 
 	fin.open(inFile);
-	fin.exceptions(fin.badbit | fin.failbit);
 	assert(fin);
 	vector<Word> words;
 	int dim = -1, count = 0;
