@@ -24,55 +24,27 @@ typedef pair<int, int> pii;
 typedef vector<int> vi;
 typedef vector<pii> vpi;
 
+enum wordID : int {};
+
 struct SimilarityEngine {
-	map<string, vector<fl>> vec;
-	int dimension;
+	int dimension, formatVersion, modelid;
+	map<string, wordID> word2id;
+	vector<vector<float>> words;
+	vector<string> wordsStrings;
+	enum Models {
+		GLOVE = 1, CONCEPTNET = 2
+	};
 
-	bool load(const char *fileName) {
-		int dimension, numberOfWords;
-		ifstream fin(fileName, ios::binary);
-		fin.read((char *)&numberOfWords, sizeof numberOfWords);
-		fin.read((char *)&dimension, sizeof dimension);
-		if (!fin) {
-			cerr << "Failed to load " << fileName << endl;
-			return false;
-		}
-		cerr << "Loading word2vec (" << numberOfWords << " words, "
-			 << dimension << " dimensions)..." << flush;
-		this->dimension = dimension;
+	// All word vectors are stored normalized -- wordNorms holds their original norms.
+	// In some embeddings, words that have more (specific) meanings have higher norms.
+	vector<float> wordNorms;
 
-		const int bufSize = 1 << 16;
-		char buf[bufSize];
-		string word;
-		vector<float> values(dimension);
-		vector<fl> valuesd;
-		rep(i, 0, numberOfWords) {
-			int len;
-			fin.read((char *)&len, sizeof len);
-			if (!fin) {
-				cerr << " failed at reading entry " << i << endl;
-				return false;
-			}
-			if (len > bufSize || len <= 0) {
-				cerr << " invalid length " << len << endl;
-				return false;
-			}
-			fin.read(buf, len);
-			fin.read((char *)values.data(), dimension * sizeof(float));
-			if (!fin) {
-				cerr << " failed at reading entry " << i << endl;
-				return false;
-			}
-			word.assign(buf, buf + len);
-			valuesd.assign(all(values));
-			vec[word] = move(valuesd);
-		}
-		cerr << " done!" << endl;
-		return true;
-	}
-
-	fl similarity(const vector<fl> &v1, const vector<fl> &v2) {
-		fl ret = 0;
+	/** Similarity between two word vectors.
+	 * Implemented as an inner product. This is the main bottleneck of the
+	 * engine, and it gains a lot from being compiled with "-O3 -mavx".
+	 */
+	float similarity(const vector<float> &v1, const vector<float> &v2) {
+		float ret = 0;
 		int dim = (int)v1.size();
 		rep(i, 0, dim) {
 			ret += v1[i] * v2[i];
@@ -80,27 +52,133 @@ struct SimilarityEngine {
 		return ret;
 	}
 
-	fl similarity(const string &s1, const string &s2) {
-		return similarity(vec.at(s1), vec.at(s2));
+	/** Arbitrary statistic, in this case the word norm. */
+	float stat(wordID s) {
+		return wordNorms[s];
 	}
 
-	const vector<fl> &getVec(const string &s) {
-		return vec.at(s);
+   public:
+	/** Returns true if successful */
+	bool load(const char *fileName, bool quiet) {
+		int numberOfWords;
+		modelid = formatVersion = 0;
+		ifstream fin(fileName, ios::binary);
+		fin.read((char *)&numberOfWords, sizeof numberOfWords);
+		if (fin && numberOfWords == -1) {
+			fin.read((char *)&formatVersion, sizeof formatVersion);
+			fin.read((char *)&modelid, sizeof modelid);
+			fin.read((char *)&numberOfWords, sizeof numberOfWords);
+		}
+		fin.read((char *)&dimension, sizeof dimension);
+		if (!fin) {
+			cerr << "Failed to load " << fileName << endl;
+			return false;
+		}
+		if (!quiet) {
+			cerr << "Loading word2vec (" << numberOfWords << " words, "
+				<< dimension << " dimensions, model " << modelid
+				<< '.' << formatVersion << ")... " << flush;
+		}
+
+		const int bufSize = 1 << 16;
+		float norm;
+		char buf[bufSize];
+		string word;
+		vector<float> values(dimension);
+		vector<float> valuesd;
+		words.resize(numberOfWords);
+		wordsStrings.resize(numberOfWords);
+		wordNorms.resize(numberOfWords);
+		rep(i, 0, numberOfWords) {
+			int len;
+			fin.read((char *)&len, sizeof len);
+			if (!fin) {
+				cerr << "failed at reading entry " << i << endl;
+				return false;
+			}
+			if (len > bufSize || len <= 0) {
+				cerr << "invalid length " << len << endl;
+				return false;
+			}
+			fin.read(buf, len);
+			if (formatVersion >= 1) {
+				fin.read((char *)&norm, sizeof norm);
+			} else {
+				norm = 1.0f;
+			}
+			fin.read((char *)values.data(), dimension * sizeof(float));
+			if (!fin) {
+				cerr << "failed at reading entry " << i << endl;
+				return false;
+			}
+			word.assign(buf, buf + len);
+			valuesd.assign(all(values));
+			words[i] = move(valuesd);
+			wordsStrings[i] = word;
+			word2id[word] = wordID(i);
+			wordNorms[i] = norm;
+			if (modelid == Models::GLOVE) {
+				wordNorms[i] = pow(wordNorms[i], 0.4);
+			}
+		}
+		if (!quiet) {
+			cerr << "done!" << endl;
+		}
+		return true;
 	}
 
+	/** Top N most popular words */
+	vector<wordID> getCommonWords(int vocabularySize) {
+		vector<wordID> ret;
+		vocabularySize = min(vocabularySize, (int)words.size());
+		ret.reserve(vocabularySize);
+		for (int i = 0; i < vocabularySize; i++) {
+			ret.push_back(wordID(i));
+		}
+		return ret;
+	}
+
+	float similarity(wordID fixedWord, wordID dynWord) {
+		double sim = similarity(words[fixedWord], words[dynWord]);
+		if (modelid == Models::GLOVE) {
+			return sim * wordNorms[dynWord] / 4.5;
+		} else if (modelid == Models::CONCEPTNET) {
+			return (sim <= 0 ? sim : pow(sim, 0.8) * 1.6);
+		} else {
+			return sim;
+		}
+	}
+
+	/** ID representing a particular word */
+	wordID getID(const string &s) {
+		return word2id.at(s);
+	}
+
+	/** Popularity of a word, the most popular word has a popularity of 1, the second most popular has a popularity of 2 etc. */
+	int getPopularity(wordID id) {
+		// Word IDs are the indices of words in the input file, which is assumed to be ordered according to popularity
+		return id + 1;
+	}
+
+	/** Word string corresponding to the ID */
+	const string &getWord(wordID id) {
+		return wordsStrings[id];
+	}
+
+	/** True if the word2vec model includes a vector for the specified word */
 	bool wordExists(const string &word) {
-		return vec.count(word) > 0;
+		return word2id.count(word) > 0;
 	}
 
-	vector<pair<fl, string>> similarWords(const vector<fl> &v) {
-		vector<pair<fl, string>> ret;
-		for (auto it = vec.begin(); it != vec.end(); ++it) {
-			ret.push_back(make_pair(-similarity(v, it->second), it->first));
+	vector<pair<float, string>> similarWords(const vector<float> &vec) {
+		vector<pair<float, wordID>> ret;
+		rep(i, 0, (int)words.size()) {
+			ret.push_back(make_pair(-similarity(vec, words[i]), wordID(i)));
 		}
 		sort(all(ret));
-		vector<pair<fl, string>> res;
+		vector<pair<float, string>> res;
 		rep(i, 0, 10) {
-			res.push_back(make_pair(-ret[i].first, ret[i].second));
+			res.push_back(make_pair(-ret[i].first, getWord(ret[i].second)));
 		}
 		return res;
 	}
@@ -162,7 +240,7 @@ void printWithColor(string c, Color col) {
 
 int main() {
 	SimilarityEngine engine;
-	engine.load("data.bin");
+	engine.load("data.bin", false);
 	for (;;) {
 again:
 		string line;
@@ -198,7 +276,7 @@ again:
 		int dim = engine.dimension;
 		vector<fl> vec(dim);
 		trav(pa, stuff) {
-			vector<fl> vec2 = engine.getVec(pa.second);
+			vector<fl> vec2 = engine.words[engine.word2id[pa.second]];
 			rep(i,0,dim) {
 				vec[i] += pa.first * vec2[i];
 			}
