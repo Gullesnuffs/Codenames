@@ -74,7 +74,7 @@ double parseDouble(const string& str) {
 	return res;
 }
 
-void processWord2Vec(const char* inFile, const char* outFile, const char* wordlistFile, int limit) {
+void processWord2Vec(const char* inFile, const char* popFile, const char* outFile, const char* wordlistFile, int modelid, int limit) {
 	string line;
 	set<string> wordlist;
 	ifstream fin(wordlistFile);
@@ -88,6 +88,26 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 		cerr << "Warning: missing wordlist.txt, so unable to ensure all words from there are available." << endl;
 	}
 
+	int popcount = 0; // (sorry)
+	map<string, int> popularWords;
+	trav(w, wordlist) popularWords[w] = -1;
+	fin.open(popFile);
+	assert(fin);
+	while (getline(fin, line)) {
+		istringstream iss(line);
+		string word;
+		iss >> word;
+		popularWords[word] = popcount++;
+		if (sz(popularWords) == limit)
+			break;
+	}
+	trav(w, wordlist) {
+		if (popularWords[w] == -1)
+			popularWords[w] = popcount++;
+	}
+	assert(sz(popularWords) == popcount);
+	fin.close();
+
 	struct Word {
 		string word;
 		float norm;
@@ -96,14 +116,15 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 
 	fin.open(inFile);
 	assert(fin);
-	vector<Word> words;
+	vector<Word> words(popcount);
 	int dim = -1, count = 0;
 	while (getline(fin, line)) {
 		size_t ind = line.find(' ');
 		assert(ind != string::npos && ind != 0);
 		Word w;
 		w.word = line.substr(0, ind);
-		if (count >= limit && !wordlist.count(w.word))
+		auto index = popularWords.find(w.word);
+		if (index == popularWords.end())
 			continue;
 
 		double norm = 0;
@@ -123,10 +144,10 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 		w.norm = (float)norm;
 		double mu = 1 / sqrt(norm);
 		trav(x, w.vec) x = (float)(x * mu);
-		words.push_back(w);
 		wordlist.erase(w.word);
+		words[index->second] = move(w);
 		count++;
-		if (count >= limit && wordlist.empty())
+		if (count == popcount)
 			break;
 	}
 	fin.close();
@@ -139,7 +160,7 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 
 	ofstream fout(outFile, ios::binary);
 	int sentinel = -1;
-	int version = 1, modelid = 1;
+	int version = 1;
 	fout.write((char*)&sentinel, sizeof sentinel);
 	fout.write((char*)&version, sizeof version);
 	fout.write((char*)&modelid, sizeof modelid);
@@ -147,6 +168,7 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 	fout.write((char*)&dim, sizeof dim);
 	trav(w, words) {
 		int len = sz(w.word);
+		if (!len) continue;
 		fout.write((char*)&len, sizeof len);
 		fout.write(w.word.data(), len);
 		fout.write((char*)&w.norm, sizeof(float));
@@ -156,11 +178,29 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 }
 
 int main(int argc, char **argv) {
-	if (argc != 3) {
-		cerr << "Usage: " << argv[0] << " <word2vec .txt file> <limit>" << endl;
+	if (argc != 5) {
+		cerr << "Usage: " << argv[0] << " <word2vec .txt file> <popularity .txt file> <model id> <limit>" << endl;
+		cerr << endl;
+		cerr << "* The word2vec file should be a list of lines of the form \"word a_1 a_2 ... a_k\"," << endl;
+		cerr << " where k is the dimension of the word2vec embedding, a_i are real numbers in decimal form," << endl;
+		cerr << " and words are lower-case with spaces replaced by underscores." << endl;
+		cerr << endl;
+		cerr << "* The popularity file contains words to be included, in order of decreasing commonness." << endl;
+		cerr << " Only the first token of every line is considered; thus, word2vec txt files can be used here as well." << endl;
+		cerr << endl;
+		cerr << "* Additionally, if wordlist.txt exists, it is prepended to the popularity file." << endl;
+		cerr << " It is intended to contain all the words from the game." << endl;
+		cerr << endl;
+		cerr << "* The model id is an arbitrary integer representing the model." << endl;
+		cerr << endl;
+		cerr << "* The limit indicates the number of words from the popularity file to use. 0 = unlimited." << endl;
+		cerr << " Around 50,000 is reasonable." << endl;
 		return 1;
 	}
+
 	const char* inFile = argv[1];
-	int limit = atoi(argv[2]);
-	processWord2Vec(inFile, "data.bin", "wordlist.txt", limit);
+	const char* popFile = argv[2];
+	int modelid = atoi(argv[3]);
+	int limit = atoi(argv[4]);
+	processWord2Vec(inFile, popFile, "data.bin", "wordlist.txt", modelid, limit);
 }
