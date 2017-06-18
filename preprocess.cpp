@@ -25,6 +25,55 @@ typedef pair<int, int> pii;
 typedef vector<int> vi;
 typedef vector<pii> vpi;
 
+// Sloppily and quickly parse a double
+double parseDouble(const string& str) {
+	double res = 0, factor = -1;
+	int exp = 0;
+	bool foundone = false, neg = false, parseexp = false;
+	bool efoundone = false, eneg = false;
+	trav(c, str) {
+		if (parseexp) {
+			if (c == '-') {
+				assert(!efoundone && !eneg);
+				eneg = true;
+			} else {
+				int dig = c - '0';
+				assert(0 <= dig && dig < 10);
+				efoundone = true;
+				exp *= 10;
+				exp += dig;
+			}
+		} else if (c == '-') {
+			assert(!foundone && !neg && factor == -1);
+			neg = true;
+		} else if (c == '.') {
+			assert(factor == -1);
+			factor = 1;
+		} else if (c == 'e' || c == 'E') {
+			parseexp = true;
+		} else {
+			double dig = c - '0';
+			assert(0 <= dig && dig < 10);
+			if (factor == -1) {
+				res *= 10;
+				res += dig;
+			} else {
+				factor *= 0.1;
+				res += factor * dig;
+			}
+			foundone = true;
+		}
+	}
+	assert(foundone);
+	if (neg) res = -res;
+	if (parseexp) {
+		assert(efoundone);
+		if (eneg) exp = -exp;
+		res *= pow(10, exp);
+	}
+	return res;
+}
+
 void processWord2Vec(const char* inFile, const char* outFile, const char* wordlistFile, int limit) {
 	string line;
 	set<string> wordlist;
@@ -50,21 +99,27 @@ void processWord2Vec(const char* inFile, const char* outFile, const char* wordli
 	vector<Word> words;
 	int dim = -1, count = 0;
 	while (getline(fin, line)) {
-		istringstream iss(line);
+		size_t ind = line.find(' ');
+		assert(ind != string::npos && ind != 0);
 		Word w;
-		iss >> w.word;
+		w.word = line.substr(0, ind);
 		if (count >= limit && !wordlist.count(w.word))
 			continue;
+
 		double norm = 0;
-		double x;
 		if (dim != -1)
 			w.vec.reserve(dim);
-		while (iss >> x) {
+		while (ind != string::npos) {
+			size_t ind2 = line.find(' ', ind+1);
+			string tok = line.substr(ind+1, ind2 == string::npos ? string::npos : ind2 - (ind+1));
+			double x = parseDouble(tok);
 			w.vec.push_back((float)x);
 			norm += x*x;
+			ind = ind2;
 		}
 		if (dim == -1) dim = sz(w.vec);
 		else assert(sz(w.vec) == dim);
+
 		w.norm = (float)norm;
 		double mu = 1 / sqrt(norm);
 		trav(x, w.vec) x = (float)(x * mu);
