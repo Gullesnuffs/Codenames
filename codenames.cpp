@@ -48,7 +48,7 @@ float sigmoid(float x) {
 }
 
 struct SimilarityEngine {
-	virtual bool load(const char *fileName) = 0;
+	virtual bool load(const char *fileName, bool quiet) = 0;
 	virtual float similarity(wordID s1, wordID s2) = 0;
 	virtual int getPopularity(wordID id) = 0;
 	virtual wordID getID(const string &s) = 0;
@@ -78,7 +78,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 
    public:
 	/** Returns true if successful */
-	bool load(const char *fileName) {
+	bool load(const char *fileName, bool quiet) {
 		int dimension, numberOfWords;
 		ifstream fin(fileName, ios::binary);
 		fin.read((char *)&numberOfWords, sizeof numberOfWords);
@@ -87,8 +87,10 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			cerr << "Failed to load " << fileName << endl;
 			return false;
 		}
-		cerr << "Loading word2vec (" << numberOfWords << " words, "
-			 << dimension << " dimensions)..." << flush;
+		if (!quiet) {
+			cerr << "Loading word2vec (" << numberOfWords << " words, "
+				<< dimension << " dimensions)... " << flush;
+		}
 
 		const int bufSize = 1 << 16;
 		char buf[bufSize];
@@ -101,17 +103,17 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			int len;
 			fin.read((char *)&len, sizeof len);
 			if (!fin) {
-				cerr << " failed at reading entry " << i << endl;
+				cerr << "failed at reading entry " << i << endl;
 				return false;
 			}
 			if (len > bufSize || len <= 0) {
-				cerr << " invalid length " << len << endl;
+				cerr << "invalid length " << len << endl;
 				return false;
 			}
 			fin.read(buf, len);
 			fin.read((char *)values.data(), dimension * sizeof(float));
 			if (!fin) {
-				cerr << " failed at reading entry " << i << endl;
+				cerr << "failed at reading entry " << i << endl;
 				return false;
 			}
 			word.assign(buf, buf + len);
@@ -120,7 +122,9 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			wordsStrings[i] = word;
 			word2id[word] = wordID(i);
 		}
-		cerr << " done!" << endl;
+		if (!quiet) {
+			cerr << "done!" << endl;
+		}
 		return true;
 	}
 
@@ -546,30 +550,27 @@ class GameInterface {
 	}
 
 	string inputColor() {
-		string color;
-		cin >> color;
-		color = toLowerCase(color);
 		while (true) {
-			if (color == "b" || color == "blue") {
-				color = "b";
-				break;
-			}
-			if (color == "r" || color == "red") {
-				color = "r";
-				break;
-			}
+			string color;
 			cin >> color;
 			color = toLowerCase(color);
+			if (color == "b" || color == "blue") {
+				return "b";
+			}
+			if (color == "r" || color == "red") {
+				return "r";
+			}
 		}
-		return color;
 	}
 
    public:
 	GameInterface(SimilarityEngine &engine) : engine(engine), bot(engine) {}
 
-	void run() {
-		cout << "Type \"help\" for help" << endl;
-		cout << "My color (b/r): ";
+	void run(bool quiet) {
+		if (!quiet) {
+			cout << "Type \"help\" for help" << endl;
+			cout << "My color (b/r): ";
+		}
 		myColor = inputColor();
 
 		while (true) {
@@ -600,14 +601,15 @@ class GameInterface {
 	}
 };
 
-int main() {
+int main(int argc, char** argv) {
+	bool quiet = (argc == 2 && argv[1] == string("--quiet"));
 	Word2VecSimilarityEngine word2vecEngine;
-	if (!word2vecEngine.load("data.bin")) {
+	if (!word2vecEngine.load("data.bin", quiet)) {
 		cerr << "Failed to load data.bin" << endl;
 		return 1;
 	}
 
 	GameInterface interface(word2vecEngine);
-	interface.run();
+	interface.run(quiet);
 	return 0;
 }
