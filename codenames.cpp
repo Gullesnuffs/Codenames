@@ -235,7 +235,7 @@ struct Bot {
 	float fuzzyWeightAssassin = -0.2f;
 	float fuzzyWeightOpponent = -0.1f;
 	float fuzzyWeightMy = 0.1f;
-	float fuzzyWeightGrey = -0.05f;
+	float fuzzyWeightCivilian = -0.05f;
 	float fuzzyExponent = 15;
 	float fuzzyOffset = 0.3f;
 
@@ -250,8 +250,8 @@ struct Bot {
 	// How bad is it if there is an opponent word with high similarity
 	float weightOpponent = -1.5f;
 
-	// How bad is it if there is a grey word with high similarity
-	float weightGrey = -0.2f;
+	// How bad is it if there is a civilian word with high similarity
+	float weightCivilian = -0.2f;
 
 	// How important is it that the last good word has greater
 	// similarity than the next bad word
@@ -276,14 +276,14 @@ struct Bot {
 
 	Bot(SimilarityEngine &engine) : engine(engine) {}
 
-	vector<string> myWords, opponentWords, greyWords, assassinWords;
+	vector<string> myWords, opponentWords, civilianWords, assassinWords;
 	struct BoardWord {
-		char type;
+		CardType type;
 		string word;
 		wordID id;
 	};
 	vector<BoardWord> boardWords;
-	void addBoardWord(char type, const string &word) {
+	void addBoardWord(CardType type, const string &word) {
 		boardWords.push_back({
 			type,
 			word,
@@ -318,46 +318,34 @@ struct Bot {
 		v.clear();
 		rep(i, 0, boardWords.size()) {
 			float sim = engine.similarity(boardWords[i].id, word);
-			if (boardWords[i].type == 'g')
+			if (boardWords[i].type == CardType::CIVILIAN)
 				sim += marginCivilians;
-			if (boardWords[i].type == 'o')
+			if (boardWords[i].type == CardType::OPPONENT)
 				sim += marginOpponentWords;
-			if (boardWords[i].type == 'a')
+			if (boardWords[i].type == CardType::ASSASSIN)
 				sim += marginAssassins;
 			v.push_back({-sim, &boardWords[i]});
 		}
 		sort(all(v), [&](const Pa &a, const Pa &b) { return a.first < b.first; });
 
-		if (valuation) {
+		if (valuation != nullptr) {
 			valuation->clear();
 			trav(it, v) {
-				CardType type;
-				switch (it.second->type) {
-					case 'm': type = CardType::MINE; break;
-					case 'o': type = CardType::OPPONENT; break;
-					case 'g': type = CardType::CIVILIAN; break;
-					case 'a': type = CardType::ASSASSIN; break;
-					default: abort();
-				}
-				valuation->push_back({-it.first, it.second->word, type});
+				valuation->push_back({-it.first, it.second->word, it.second->type});
 			}
 		}
 
 		// Compute a fuzzy score
 		float baseScore = 0;
 		rep(i, 0, v.size()) {
-			char type = v[i].second->type;
 			float weight;
-			if (type == 'a')
-				weight = fuzzyWeightAssassin;
-			else if (type == 'o')
-				weight = fuzzyWeightOpponent;
-			else if (type == 'm')
-				weight = fuzzyWeightMy;
-			else if (type == 'g')
-				weight = fuzzyWeightGrey;
-			else
-				assert(0);
+			switch (v[i].second->type) {
+				case CardType::MINE: weight = fuzzyWeightMy; break;
+				case CardType::OPPONENT: weight = fuzzyWeightOpponent; break;
+				case CardType::CIVILIAN: weight = fuzzyWeightCivilian; break;
+				case CardType::ASSASSIN: weight = fuzzyWeightAssassin; break;
+				default: abort();
+			}
 			float contribution = weight * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 			baseScore += contribution;
 		}
@@ -369,28 +357,28 @@ struct Bot {
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
-			char type = v[i].second->type;
-			if (type == 'a')
+			CardType type = v[i].second->type;
+			if (type == CardType::ASSASSIN)
 				break;
-			if (type == 'o') {
+			if (type == CardType::OPPONENT) {
 				curScore += weightOpponent;
 				mult *= multiplierAfterBadWord;
 				continue;
 			}
-			if (type == 'm') {
+			if (type == CardType::MINE) {
 				lastGood = -v[i].first;
 				curScore += mult * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 				++curCount;
 			}
-			if (type == 'g') {
-				curScore += mult * weightGrey;
+			if (type == CardType::CIVILIAN) {
+				curScore += mult * weightCivilian;
 				mult *= multiplierAfterBadWord;
 				continue;
 			}
 			float tmpScore = -1;
 			rep(j, i + 1, v.size()) {
-				char type2 = v[j].second->type;
-				if (type2 == 'a' || type2 == 'o') {
+				CardType type2 = v[j].second->type;
+				if (type2 == CardType::ASSASSIN || type2 == CardType::OPPONENT) {
 					tmpScore = mult * marginWeight * sigmoid((lastGood - (-v[j].first)) * fuzzyExponent);
 					break;
 				}
@@ -412,21 +400,21 @@ struct Bot {
 
 	void setWords(const vector<string> &_myWords,
 				  const vector<string> &_opponentWords,
-				  const vector<string> &_greyWords,
+				  const vector<string> &_civilianWords,
 				  const vector<string> &_assassinWords) {
 		myWords = _myWords;
 		opponentWords = _opponentWords;
-		greyWords = _greyWords;
+		civilianWords = _civilianWords;
 		assassinWords = _assassinWords;
 		createBoardWords();
 	}
 
 	void createBoardWords() {
 		boardWords.clear();
-		trav(w, myWords) addBoardWord('m', w);
-		trav(w, opponentWords) addBoardWord('o', w);
-		trav(w, greyWords) addBoardWord('g', w);
-		trav(w, assassinWords) addBoardWord('a', w);
+		trav(w, myWords) addBoardWord(CardType::MINE, w);
+		trav(w, opponentWords) addBoardWord(CardType::OPPONENT, w);
+		trav(w, civilianWords) addBoardWord(CardType::CIVILIAN, w);
+		trav(w, assassinWords) addBoardWord(CardType::ASSASSIN, w);
 	}
 
 	struct Result {
@@ -447,7 +435,7 @@ struct Bot {
 		vector<Result> res;
 
 		// Extract the top 'count' words that are not forbidden by the rules
-		while (res.size() < count && !pq.empty()) {
+		while ((int)res.size() < count && !pq.empty()) {
 			auto pa = pq.top();
 			pq.pop();
 			if (!forbiddenWord(engine.getWord(pa.second))) {
@@ -484,7 +472,7 @@ class GameInterface {
 	typedef Bot::CardType CardType;
 	SimilarityEngine &engine;
 	Bot bot;
-	vector<string> myWords, opponentWords, greyWords, assassinWords;
+	vector<string> myWords, opponentWords, civilianWords, assassinWords;
 	string myColor;
 
 	void printValuation(const string &word, const vector<Bot::ValuationItem> &valuation) {
@@ -504,9 +492,9 @@ class GameInterface {
 	void commandReset() {
 		myWords.clear();
 		opponentWords.clear();
-		greyWords.clear();
+		civilianWords.clear();
 		assassinWords.clear();
-		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
+		bot.setWords(myWords, opponentWords, civilianWords, assassinWords);
 	}
 
 	void commandSuggestWord() {
@@ -561,7 +549,7 @@ class GameInterface {
 		}
 		cout << endl;
 		cout << "Civilians:";
-		for (auto word : greyWords) {
+		for (auto word : civilianWords) {
 			cout << " " << word;
 		}
 		cout << endl;
@@ -579,7 +567,7 @@ class GameInterface {
 		} else if (command == "b" || command == "r") {
 			v = &opponentWords;
 		} else if (command == "g" || command == "c") {
-			v = &greyWords;
+			v = &civilianWords;
 		} else if (command == "a") {
 			v = &assassinWords;
 		} else if (command == "-") {
@@ -588,7 +576,7 @@ class GameInterface {
 			word = toLowerCase(word);
 			eraseFromVector(word, myWords);
 			eraseFromVector(word, opponentWords);
-			eraseFromVector(word, greyWords);
+			eraseFromVector(word, civilianWords);
 			eraseFromVector(word, assassinWords);
 		}
 
@@ -602,7 +590,7 @@ class GameInterface {
 				cout << word << " was not found in the dictionary" << endl;
 			}
 		}
-		bot.setWords(myWords, opponentWords, greyWords, assassinWords);
+		bot.setWords(myWords, opponentWords, civilianWords, assassinWords);
 	}
 
 	void commandScore() {
