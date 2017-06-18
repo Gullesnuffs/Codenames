@@ -18,7 +18,6 @@ using namespace std;
 #define all(v) (v).begin(), (v).end()
 #define what_is(x) cout << #x << " is " << x << endl;
 
-typedef float fl;
 typedef long long ll;
 typedef pair<int, int> pii;
 typedef vector<int> vi;
@@ -274,15 +273,15 @@ again:
 		}
 
 		int dim = engine.dimension;
-		vector<fl> vec(dim);
+		vector<float> vec(dim);
 		trav(pa, stuff) {
-			vector<fl> vec2 = engine.words[engine.word2id[pa.second]];
+			vector<float> vec2 = engine.words[engine.getID(pa.second)];
 			rep(i,0,dim) {
 				vec[i] += pa.first * vec2[i];
 			}
 		}
 
-		fl max = 0, min = 0;
+		float max = 0, min = 0;
 		rep(i,0,dim) {
 			max = std::max(max, vec[i]);
 			min = std::min(min, vec[i]);
@@ -290,7 +289,7 @@ again:
 		max = std::max(max, -min);
 		if (max == 0) max = 1;
 		rep(i,0,dim) {
-			fl v = vec[i] / max;
+			float v = vec[i] / max;
 			Color c = (v < 0 ? Color{-v, 0, 0} : Color{0, v, 0});
 			// c = getColor(v,-1,1);
 			printWithColor("█", c);
