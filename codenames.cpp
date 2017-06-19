@@ -79,7 +79,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		GLOVE = 1, CONCEPTNET = 2
 	};
 
-	// All word vectors are stored normalized -- wordNorms holds their original norms.
+	// All word vectors are stored normalized -- wordNorms holds their original squared norms.
 	// In some embeddings, words that have more (specific) meanings have higher norms.
 	vector<float> wordNorms;
 
