@@ -663,7 +663,7 @@ string escapeJSON(const string &s) {
 		else return (char)('a' + c - 10);
 	};
 	trav(c, s) {
-		if (c < 32 || c == 0x7f || c == '\\' || c == '"') {
+		if (c < 32 || c == 0x7f || c == '\\' || c == '"' || c == '/') {
 			res += "\\u00";
 			res += hex(c / 16);
 			res += hex(c % 16);
@@ -711,8 +711,10 @@ void batchMain() {
 
 			string word;
 			cin >> word;
-			if (!bot.engine.wordExists(word))
-				fail("Unknown word, sorry. :(");
+			if (!bot.engine.wordExists(word)) {
+				cout << "{\"status\": 2, \"message\": \"Unknown word: '" << escapeJSON(word) << "'.\"}";
+				return;
+			}
 
 			bot.addBoardWord(type2, word);
 		}
@@ -723,13 +725,13 @@ void batchMain() {
 		vector<Bot::Result> results = bot.findBestWords(index+1);
 
 		if (index >= (int)results.size()) {
-			cout << "{\"status\": 1, \"message\": \"No more clues.\"}";
+			cout << "{\"status\": 3, \"message\": \"No more clues.\"}";
 			return;
 		}
 
 		string w = results[index].word;
 		int count = results[index].number;
-		cout << "{\"status\": 2, \"message\": \"Success.\", "
+		cout << "{\"status\": 1, \"message\": \"Success.\", "
 			<< "\"word\": \"" << escapeJSON(w) << "\", \"count\": " << count << "}";
 	} catch (ios::failure e) {
 		fail("Incomplete message.");
