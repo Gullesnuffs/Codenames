@@ -668,11 +668,12 @@ class GameInterface {
 
 string escapeJSON(const string &s) {
 	string res;
-	auto hex = [](int c) -> char {
+	auto hex = [](unsigned c) -> char {
 		if (c < 10) return (char)('0' + c);
 		else return (char)('a' + c - 10);
 	};
-	trav(c, s) {
+	trav(ch, s) {
+		unsigned c = (unsigned)ch;
 		if (c < 32 || c == 0x7f || c == '\\' || c == '"' || c == '/') {
 			res += "\\u00";
 			res += hex(c / 16);
