@@ -15,7 +15,6 @@ using namespace std;
 #define rrep(i, a, b) for (int i = (a)-1; i >= int(b); --i)
 #define trav(x, v) for (auto &x : v)
 #define all(v) (v).begin(), (v).end()
-#define what_is(x) cout << #x << " is " << x << endl;
 
 typedef long long ll;
 typedef pair<int, int> pii;
@@ -34,10 +33,21 @@ void eraseFromVector(string word, vector<string> &v) {
 	}
 }
 
-string toLowerCase(string s) {
-	rep(i, 0, s.size()) {
-		if ('A' <= s[i] && s[i] <= 'Z') {
-			s[i] = (char)tolower(s[i]);
+string normalize(string s) {
+	trav(c, s) {
+		if ('A' <= c && c <= 'Z') {
+			c = (char)tolower(c);
+		} else if (c == ' ') {
+			c = '_';
+		}
+	}
+	return s;
+}
+
+string denormalize(string s) {
+	trav(c, s) {
+		if (c == '_') {
+			c = ' ';
 		}
 	}
 	return s;
@@ -206,7 +216,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 
 	vector<pair<float, string>> similarWords(const string &s) {
 		if (!wordExists(s)) {
-			cout << s << " does not occur in the corpus" << endl;
+			cout << denormalize(s) << " does not occur in the corpus" << endl;
 			return vector<pair<float, string>>();
 		}
 		vector<pair<float, wordID>> ret;
@@ -293,8 +303,8 @@ struct Bot {
 
 	/** True if a is a super or substring of b or vice versa */
 	bool superOrSubstring(const string &a, const string &b) {
-		auto lowerA = toLowerCase(a);
-		auto lowerB = toLowerCase(b);
+		auto lowerA = normalize(a);
+		auto lowerB = normalize(b);
 		return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
 	}
 
@@ -476,7 +486,7 @@ class GameInterface {
 	string myColor;
 
 	void printValuation(const string &word, const vector<Bot::ValuationItem> &valuation) {
-		cout << "Printing statistics for \"" << word << "\"" << endl;
+		cout << "Printing statistics for \"" << denormalize(word) << "\"" << endl;
 		map<CardType, string> desc;
 		desc[CardType::MINE] = "(My)";
 		desc[CardType::OPPONENT] = "(Opponent)";
@@ -484,7 +494,7 @@ class GameInterface {
 		desc[CardType::ASSASSIN] = "(Assassin)";
 		trav(item, valuation) {
 			cout << setprecision(6) << fixed << item.score << "\t";
-			cout << item.word << " " << desc[item.type] << endl;
+			cout << denormalize(item.word) << " " << desc[item.type] << endl;
 		}
 		cout << endl;
 	}
@@ -517,7 +527,7 @@ class GameInterface {
 			cout << endl;
 
 			int p = engine.getPopularity(engine.getID(best.word));
-			cout << "The best clue found is " << best.word << " " << best.number << endl;
+			cout << "The best clue found is " << denormalize(best.word) << " " << best.number << endl;
 			cout << best.word << " is the " << p << orderSuffix(p)
 				<< " most popular word" << endl;
 		}
@@ -540,22 +550,22 @@ class GameInterface {
 	void commandBoard() {
 		cout << "My spies:";
 		for (auto word : myWords) {
-			cout << " " << word;
+			cout << " " << denormalize(word);
 		}
 		cout << endl;
 		cout << "Opponent spies:";
 		for (auto word : opponentWords) {
-			cout << " " << word;
+			cout << " " << denormalize(word);
 		}
 		cout << endl;
 		cout << "Civilians:";
 		for (auto word : civilianWords) {
-			cout << " " << word;
+			cout << " " << denormalize(word);
 		}
 		cout << endl;
 		cout << "Assassins:";
 		for (auto word : assassinWords) {
-			cout << " " << word;
+			cout << " " << denormalize(word);
 		}
 		cout << endl;
 	}
@@ -573,7 +583,7 @@ class GameInterface {
 		} else if (command == "-") {
 			string word;
 			cin >> word;
-			word = toLowerCase(word);
+			word = normalize(word);
 			eraseFromVector(word, myWords);
 			eraseFromVector(word, opponentWords);
 			eraseFromVector(word, civilianWords);
@@ -583,11 +593,11 @@ class GameInterface {
 		if (v != NULL) {
 			string word;
 			cin >> word;
-			word = toLowerCase(word);
+			word = normalize(word);
 			if (engine.wordExists(word)) {
 				v->push_back(word);
 			} else {
-				cout << word << " was not found in the dictionary" << endl;
+				cout << denormalize(word) << " was not found in the dictionary" << endl;
 			}
 		}
 		bot.setWords(myWords, opponentWords, civilianWords, assassinWords);
@@ -597,20 +607,20 @@ class GameInterface {
 		string word;
 		cin >> word;
 		if (!engine.wordExists(word)) {
-			cout << word << " was not found in the dictionary" << endl;
+			cout << denormalize(word) << " was not found in the dictionary" << endl;
 			return;
 		}
 		vector<ValuationItem> val;
 		pair<float, int> res = bot.getWordScore(engine.getID(word), &val);
 		printValuation(word, val);
-		cout << word << " " << res.second << " has score " << res.first << endl;
+		cout << denormalize(word) << " " << res.second << " has score " << res.first << endl;
 	}
 
 	string inputColor() {
 		while (true) {
 			string color;
 			cin >> color;
-			color = toLowerCase(color);
+			color = normalize(color);
 			if (color == "b" || color == "blue") {
 				return "b";
 			}
@@ -633,7 +643,7 @@ class GameInterface {
 			cin >> command;
 			if (!cin)
 				break;
-			command = toLowerCase(command);
+			command = normalize(command);
 
 			if (command.size() == 1 && string("rgbac-").find(command) != string::npos) {
 				commandModifyBoard(command);
@@ -712,7 +722,8 @@ void batchMain() {
 			string word;
 			cin >> word;
 			if (!bot.engine.wordExists(word)) {
-				cout << "{\"status\": 2, \"message\": \"Unknown word: '" << escapeJSON(word) << "'.\"}";
+				cout << "{\"status\": 2, \"message\": \"Unknown word: '"
+					<< escapeJSON(denormalize(word)) << "'.\"}";
 				return;
 			}
 
@@ -732,7 +743,8 @@ void batchMain() {
 		string w = results[index].word;
 		int count = results[index].number;
 		cout << "{\"status\": 1, \"message\": \"Success.\", "
-			<< "\"word\": \"" << escapeJSON(w) << "\", \"count\": " << count << "}";
+			<< "\"word\": \"" << escapeJSON(denormalize(w))
+			<< "\", \"count\": " << count << "}";
 	} catch (ios::failure e) {
 		fail("Incomplete message.");
 	}
