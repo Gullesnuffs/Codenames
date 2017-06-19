@@ -685,6 +685,7 @@ string escapeJSON(const string &s) {
 }
 
 void batchMain() {
+	typedef Bot::CardType CardType;
 	auto fail = [](const char *message) {
 		cout << "{\"status\": 0, \"message\": \"" << message << "\"}";
 		exit(0);
@@ -712,11 +713,11 @@ void batchMain() {
 
 		string type;
 		while (cin >> type && type != "go") {
-			Bot::CardType type2;
-			if (type == string(1, color)) type2 = Bot::CardType::MINE;
-			else if (type == "b" || type == "r") type2 = Bot::CardType::OPPONENT;
-			else if (type == "c") type2 = Bot::CardType::CIVILIAN;
-			else if (type == "a") type2 = Bot::CardType::ASSASSIN;
+			CardType type2;
+			if (type == string(1, color)) type2 = CardType::MINE;
+			else if (type == "b" || type == "r") type2 = CardType::OPPONENT;
+			else if (type == "c") type2 = CardType::CIVILIAN;
+			else if (type == "a") type2 = CardType::ASSASSIN;
 			else { fail("Invalid type."); abort(); }
 
 			string word;
@@ -740,11 +741,30 @@ void batchMain() {
 			return;
 		}
 
+		auto type2chr = [color](CardType type) -> char {
+			switch (type) {
+				case CardType::MINE: return color;
+				case CardType::OPPONENT: return (char)(color ^ 'r' ^ 'b');
+				case CardType::CIVILIAN: return 'c';
+				case CardType::ASSASSIN: return 'a';
+			}
+			abort();
+		};
+
 		string w = results[index].word;
 		int count = results[index].number;
 		cout << "{\"status\": 1, \"message\": \"Success.\", "
 			<< "\"word\": \"" << escapeJSON(denormalize(w))
-			<< "\", \"count\": " << count << "}";
+			<< "\", \"count\": " << count << ", \"why\": [";
+		bool first = true;
+		trav(item, results[index].valuations) {
+			cout << (first ? "\n" : ",\n") << "  {"
+				<< "\"score\": " << item.score << ", "
+				<< "\"word\": \"" << escapeJSON(denormalize(item.word)) << "\", "
+				<< "\"type\": \"" << type2chr(item.type) << "\"}";
+			first = false;
+		}
+		cout << "\n]}";
 	} catch (ios::failure e) {
 		fail("Incomplete message.");
 	}
