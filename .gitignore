@@ -1,5 +1,6 @@
 *.out
 /preprocess
+/codenames
 /calc
 *.txt
 *.bin
