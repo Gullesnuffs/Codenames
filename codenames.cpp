@@ -668,18 +668,18 @@ class GameInterface {
 
 string escapeJSON(const string &s) {
 	string res;
-	auto hex = [](unsigned c) -> char {
+	auto hex = [](unsigned int c) -> char {
 		if (c < 10) return (char)('0' + c);
 		else return (char)('a' + c - 10);
 	};
 	trav(ch, s) {
-		unsigned c = (unsigned)ch;
+		unsigned char c = (unsigned char)ch;
 		if (c < 32 || c == 0x7f || c == '\\' || c == '"' || c == '/') {
 			res += "\\u00";
 			res += hex(c / 16);
 			res += hex(c % 16);
 		} else {
-			res += c;
+			res += ch;
 		}
 	}
 	return res;
