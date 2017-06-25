@@ -732,12 +732,15 @@ void batchMain() {
 			bot.addBoardWord(type2, word);
 		}
 
-		int index;
-		cin >> index;
-		if (index < 0) fail("Invalid index");
-		vector<Bot::Result> results = bot.findBestWords(index+1);
+		int firstResult, numResults;
+		cin >> firstResult >> numResults;
+		if (firstResult < 0) fail("Invalid index");
+		if (numResults <= 0) fail("Invalid count");
+		firstResult = min(firstResult, 1000000);
+		numResults = min(numResults, 1000000);
+		vector<Bot::Result> results = bot.findBestWords(firstResult + numResults);
 
-		if (index >= (int)results.size()) {
+		if (firstResult >= (int)results.size()) {
 			cout << "{\"status\": 3, \"message\": \"No more clues.\"}";
 			return;
 		}
@@ -752,17 +755,28 @@ void batchMain() {
 			abort();
 		};
 
-		string w = results[index].word;
-		int count = results[index].number;
-		cout << "{\"status\": 1, \"message\": \"Success.\", "
-			<< "\"word\": \"" << escapeJSON(denormalize(w))
-			<< "\", \"count\": " << count << ", \"why\": [";
+		auto printClue = [&](int index) {
+			assert(0 <= index && index < (int)results.size());
+			string w = results[index].word;
+			int count = results[index].number;
+			cout << "  {\"word\": \"" << escapeJSON(denormalize(w)) << "\", ";
+			cout << "\"count\": " << count << ", \"why\": [";
+			bool first = true;
+			trav(item, results[index].valuations) {
+				cout << (first ? "\n" : ",\n") << "    {"
+					<< "\"score\": " << item.score << ", "
+					<< "\"word\": \"" << escapeJSON(denormalize(item.word)) << "\", "
+					<< "\"type\": \"" << type2chr(item.type) << "\"}";
+				first = false;
+			}
+			cout << "\n  ]}";
+		};
+
+		cout << "{\"status\": 1, \"message\": \"Success.\", \"result\": [" << endl;
 		bool first = true;
-		trav(item, results[index].valuations) {
-			cout << (first ? "\n" : ",\n") << "  {"
-				<< "\"score\": " << item.score << ", "
-				<< "\"word\": \"" << escapeJSON(denormalize(item.word)) << "\", "
-				<< "\"type\": \"" << type2chr(item.type) << "\"}";
+		rep(i, firstResult, min(firstResult + numResults, (int)results.size())) {
+			cout << (first ? "\n" : ",\n");
+			printClue(i);
 			first = false;
 		}
 		cout << "\n]}";
