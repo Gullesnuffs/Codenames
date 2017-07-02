@@ -466,10 +466,10 @@ struct Bot {
 			bestScore = vector<float>((1<<myWordsFound), 0);
 			bestWord = vector<wordID>(1<<myWordsFound);
 			bestParent = vector<int>(1<<myWordsFound);
+			minMovesNeeded[0] = 0;
+			bestScore[0] = 0;
 		}
 
-		minMovesNeeded[0] = 0;
-		bestScore[0] = 0;
 		for (wordID candidate : candidates) {
 			pair<float, vector<wordID> > res = getWordScore(candidate, nullptr);
 			pq.push({{res.first, -((int)res.second.size())}, candidate});
@@ -536,7 +536,6 @@ struct Bot {
 	}
 
 	void setHasInfo(string word){
-		cerr << "Has info about" << word << endl;
 		hasInfoAbout.insert(word);
 	}
 };
