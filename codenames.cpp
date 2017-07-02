@@ -282,6 +282,9 @@ struct Bot {
 	// Consider only the 50000 most common words
 	int vocabularySize = 50000;
 
+	// A set of strings for which the bot has already provided clues
+	set<string> hasInfoAbout;
+
 	SimilarityEngine &engine;
 
 	Bot(SimilarityEngine &engine) : engine(engine) {}
@@ -322,7 +325,7 @@ struct Bot {
 		CardType type;
 	};
 
-	pair<float, int> getWordScore(wordID word, vector<ValuationItem> *valuation) {
+	pair<float, vector<wordID> > getWordScore(wordID word, vector<ValuationItem> *valuation) {
 		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
@@ -364,6 +367,7 @@ struct Bot {
 		float curScore = 0, bestScore = 0, lastGood = 0;
 		int curCount = 0;
 		float mult = 1;
+		vector<wordID> targetWords;
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
@@ -376,6 +380,7 @@ struct Bot {
 				continue;
 			}
 			if (type == CardType::MINE) {
+				targetWords.push_back(v[i].second->id);
 				lastGood = -v[i].first;
 				curScore += mult * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 				++curCount;
@@ -399,13 +404,15 @@ struct Bot {
 				bestCount = curCount;
 			}
 		}
+		while(targetWords.size() > bestCount)
+			targetWords.pop_back();
 
 		int popularity = engine.getPopularity(word);
 		if (popularity < commonWordLimit)
 			bestScore *= commonWordWeight;
 		else if (popularity > rareWordLimit)
 			bestScore *= rareWordWeight;
-		return make_pair(bestScore, bestCount);
+		return make_pair(bestScore, targetWords);
 	}
 
 	void setWords(const vector<string> &_myWords,
@@ -437,12 +444,66 @@ struct Bot {
 	vector<Result> findBestWords(int count = 20) {
 		vector<wordID> candidates = engine.getCommonWords(vocabularySize);
 		priority_queue<pair<pair<float, int>, wordID>> pq;
+		map<int, int> bitRepresentation;
+		int myWordsFound = 0;
+		rep(i, 0, boardWords.size()) {
+			if(boardWords[i].type == CardType::MINE && !hasInfoAbout.count(engine.getWord(boardWords[i].id))){
+				bitRepresentation[boardWords[i].id] = (1<<myWordsFound);
+				++myWordsFound;
+			}
+			else{
+				bitRepresentation[boardWords[i].id] = 0;
+			}
+		}
+		vector<int> minMovesNeeded((1<<myWordsFound), 1000);
+		vector<float> bestScore((1<<myWordsFound), 0);
+		vector<wordID> bestWord(1<<myWordsFound);
+		vector<int> bestParent(1<<myWordsFound);
+		minMovesNeeded[0] = 0;
+		bestScore[0] = 0;
 		for (wordID candidate : candidates) {
-			pair<float, int> res = getWordScore(candidate, nullptr);
-			pq.push({{res.first, -res.second}, candidate});
+			pair<float, vector<wordID> > res = getWordScore(candidate, nullptr);
+			pq.push({{res.first, -((int)res.second.size())}, candidate});
+			if(res.second.size() > 0){
+				int bits = 0;
+				for (int matchedWord : res.second){
+					bits |= bitRepresentation[matchedWord];
+				}
+				if(res.first > bestScore[bits] && !forbiddenWord(engine.getWord(candidate))){
+					minMovesNeeded[bits] = 1;
+					bestScore[bits] = res.first;
+					bestWord[bits] = candidate;
+					bestParent[bits] = 0;
+				}
+			}
+		}
+
+		for (int i = 0; i < (1<<myWordsFound); ++i){
+			if(minMovesNeeded[i] != 1)
+				continue;
+			for (int j = 0; j < (1<<myWordsFound); ++j){
+				int k = (i|j);
+				if(minMovesNeeded[j] + 1 < minMovesNeeded[k] || (minMovesNeeded[j] + 1 == minMovesNeeded[k] && bestScore[i]+bestScore[j] > bestScore[k])){
+					minMovesNeeded[k] = minMovesNeeded[j] + 1;
+					bestScore[k] = bestScore[i] + bestScore[j];
+					bestParent[k] = j;
+					bestWord[k] = bestWord[i];
+				}
+			}
 		}
 
 		vector<Result> res;
+
+		int bits = (1<<myWordsFound)-1;
+		while(bits != 0){
+			wordID word = bestWord[bits];
+			bits = bestParent[bits];
+			vector<ValuationItem> val;
+			auto wordScore = getWordScore(word, &val);
+			float score = wordScore.first;
+			int number = wordScore.second.size();
+			res.push_back(Result{engine.getWord(word), number, score, val});
+		}
 
 		// Extract the top 'count' words that are not forbidden by the rules
 		while ((int)res.size() < count && !pq.empty()) {
@@ -459,6 +520,11 @@ struct Bot {
 		}
 
 		return res;
+	}
+
+	void setHasInfo(string word){
+		cerr << "Has info about" << word << endl;
+		hasInfoAbout.insert(word);
 	}
 };
 
@@ -611,9 +677,9 @@ class GameInterface {
 			return;
 		}
 		vector<ValuationItem> val;
-		pair<float, int> res = bot.getWordScore(engine.getID(word), &val);
+		pair<float, vector<wordID>> res = bot.getWordScore(engine.getID(word), &val);
 		printValuation(word, val);
-		cout << denormalize(word) << " " << res.second << " has score " << res.first << endl;
+		cout << denormalize(word) << " " << res.second.size() << " has score " << res.first << endl;
 	}
 
 	string inputColor() {
@@ -714,6 +780,12 @@ void batchMain() {
 
 		string type;
 		while (cin >> type && type != "go") {
+			if(type == "hinted"){
+				string word;
+				cin >> word;
+				bot.setHasInfo(word);
+				continue;
+			}
 			CardType type2;
 			if (type == string(1, color)) type2 = CardType::MINE;
 			else if (type == "b" || type == "r") type2 = CardType::OPPONENT;
