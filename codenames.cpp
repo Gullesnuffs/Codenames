@@ -455,16 +455,25 @@ struct Bot {
 				bitRepresentation[boardWords[i].id] = 0;
 			}
 		}
-		vector<int> minMovesNeeded((1<<myWordsFound), 1000);
-		vector<float> bestScore((1<<myWordsFound), 0);
-		vector<wordID> bestWord(1<<myWordsFound);
-		vector<int> bestParent(1<<myWordsFound);
+
+		bool usePlanning = (myWordsFound && myWordsFound <= 9);
+		vector<int> minMovesNeeded;
+		vector<float> bestScore;
+		vector<wordID> bestWord;
+		vector<int> bestParent;
+		if(usePlanning){
+			minMovesNeeded = vector<int>((1<<myWordsFound), 1000);
+			bestScore = vector<float>((1<<myWordsFound), 0);
+			bestWord = vector<wordID>(1<<myWordsFound);
+			bestParent = vector<int>(1<<myWordsFound);
+		}
+
 		minMovesNeeded[0] = 0;
 		bestScore[0] = 0;
 		for (wordID candidate : candidates) {
 			pair<float, vector<wordID> > res = getWordScore(candidate, nullptr);
 			pq.push({{res.first, -((int)res.second.size())}, candidate});
-			if(res.second.size() > 0){
+			if(res.second.size() > 0 && usePlanning){
 				int bits = 0;
 				for (int matchedWord : res.second){
 					bits |= bitRepresentation[matchedWord];
@@ -477,32 +486,36 @@ struct Bot {
 				}
 			}
 		}
-
-		for (int i = 0; i < (1<<myWordsFound); ++i){
-			if(minMovesNeeded[i] != 1)
-				continue;
-			for (int j = 0; j < (1<<myWordsFound); ++j){
-				int k = (i|j);
-				if(minMovesNeeded[j] + 1 < minMovesNeeded[k] || (minMovesNeeded[j] + 1 == minMovesNeeded[k] && bestScore[i]+bestScore[j] > bestScore[k])){
-					minMovesNeeded[k] = minMovesNeeded[j] + 1;
-					bestScore[k] = bestScore[i] + bestScore[j];
-					bestParent[k] = j;
-					bestWord[k] = bestWord[i];
-				}
-			}
-		}
-
+		
 		vector<Result> res;
 
-		int bits = (1<<myWordsFound)-1;
-		while(bits != 0){
-			wordID word = bestWord[bits];
-			bits = bestParent[bits];
-			vector<ValuationItem> val;
-			auto wordScore = getWordScore(word, &val);
-			float score = wordScore.first;
-			int number = wordScore.second.size();
-			res.push_back(Result{engine.getWord(word), number, score, val});
+		if(usePlanning){
+			// Make a plan so that every word is covered by a clue in as few moves as possible
+
+			for (int i = 0; i < (1<<myWordsFound); ++i){
+				if(minMovesNeeded[i] != 1)
+					continue;
+				for (int j = 0; j < (1<<myWordsFound); ++j){
+					int k = (i|j);
+					if(minMovesNeeded[j] + 1 < minMovesNeeded[k] || (minMovesNeeded[j] + 1 == minMovesNeeded[k] && bestScore[i]+bestScore[j] > bestScore[k])){
+						minMovesNeeded[k] = minMovesNeeded[j] + 1;
+						bestScore[k] = bestScore[i] + bestScore[j];
+						bestParent[k] = j;
+						bestWord[k] = bestWord[i];
+					}
+				}
+			}
+
+			int bits = (1<<myWordsFound)-1;
+			while(bits != 0){
+				wordID word = bestWord[bits];
+				bits = bestParent[bits];
+				vector<ValuationItem> val;
+				auto wordScore = getWordScore(word, &val);
+				float score = wordScore.first;
+				int number = wordScore.second.size();
+				res.push_back(Result{engine.getWord(word), number, score, val});
+			}
 		}
 
 		// Extract the top 'count' words that are not forbidden by the rules
