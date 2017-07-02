@@ -282,6 +282,9 @@ struct Bot {
 	// Consider only the 50000 most common words
 	int vocabularySize = 50000;
 
+	// An approximation of the number of correct words we expect each turn
+	float valueOfOneTurn = 4;
+
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
 
@@ -459,11 +462,13 @@ struct Bot {
 		bool usePlanning = (myWordsFound && myWordsFound <= 9);
 		vector<int> minMovesNeeded;
 		vector<float> bestScore;
+		vector<float> bestClueScore;
 		vector<wordID> bestWord;
 		vector<int> bestParent;
 		if(usePlanning){
 			minMovesNeeded = vector<int>((1<<myWordsFound), 1000);
-			bestScore = vector<float>((1<<myWordsFound), 0);
+			bestScore = vector<float>((1<<myWordsFound), -1000);
+			bestClueScore = vector<float>((1<<myWordsFound), -1000);
 			bestWord = vector<wordID>(1<<myWordsFound);
 			bestParent = vector<int>(1<<myWordsFound);
 			minMovesNeeded[0] = 0;
@@ -478,9 +483,10 @@ struct Bot {
 				for (int matchedWord : res.second){
 					bits |= bitRepresentation[matchedWord];
 				}
-				if(res.first > bestScore[bits] && !forbiddenWord(engine.getWord(candidate))){
+				float newScore = res.first - valueOfOneTurn;
+				if(bits && newScore > bestScore[bits] && !forbiddenWord(engine.getWord(candidate))){
 					minMovesNeeded[bits] = 1;
-					bestScore[bits] = res.first;
+					bestScore[bits] = newScore;
 					bestWord[bits] = candidate;
 					bestParent[bits] = 0;
 				}
@@ -497,9 +503,13 @@ struct Bot {
 					continue;
 				for (int j = 0; j < (1<<myWordsFound); ++j){
 					int k = (i|j);
-					if(minMovesNeeded[j] + 1 < minMovesNeeded[k] || (minMovesNeeded[j] + 1 == minMovesNeeded[k] && bestScore[i]+bestScore[j] > bestScore[k])){
+					if(k == i || k == j)
+						continue;
+					float newScore = bestScore[i] + bestScore[j];
+					if(newScore > bestScore[k] || (newScore > bestScore[k] - 0.01 && bestScore[i] > bestClueScore[k])){
 						minMovesNeeded[k] = minMovesNeeded[j] + 1;
-						bestScore[k] = bestScore[i] + bestScore[j];
+						bestScore[k] = newScore;
+						bestClueScore[k] = bestScore[i];
 						bestParent[k] = j;
 						bestWord[k] = bestWord[i];
 					}
