@@ -200,6 +200,43 @@ double parse(string w) {
 	return res;
 }
 
+bool eval(SimilarityEngine &engine, const string &line, vector<float> *out) {
+	size_t i = 0;
+	vector<pair<double, string>> stuff;
+	char lastSign = '+';
+	for (;;) {
+		size_t j = line.find_first_of("+-", i);
+		string sub = trim(j == string::npos ? line.substr(i) : line.substr(i, j - i));
+		size_t k = sub.find_first_not_of(".0123456789");
+		if (k == string::npos) {
+			cout << "missing word" << endl;
+			return false;
+		}
+		string dec = sub.substr(0, k);
+		string w = trim(sub.substr(k));
+		if (!engine.wordExists(w)) {
+			cout << "unknown word " << w << endl;
+			return false;
+		}
+		double val = parse(dec);
+		if (lastSign == '-') val = -val;
+		stuff.push_back({val, w});
+		if (j == string::npos) break;
+		lastSign = line[j];
+		i = j+1;
+	}
+
+	int dim = engine.dimension;
+	vector<float> vec(dim);
+	trav(pa, stuff) {
+		vector<float> vec2 = engine.words[engine.getID(pa.second)];
+		rep(i,0,dim) {
+			vec[i] += pa.first * vec2[i];
+		}
+	}
+	*out = move(vec);
+	return true;
+}
 
 struct Color {
     double r,g,b;
@@ -240,68 +277,48 @@ void printWithColor(string c, Color col) {
 int main() {
 	SimilarityEngine engine;
 	engine.load("data.bin", false);
+	const int dim = engine.dimension;
 	for (;;) {
-again:
 		string line;
 		cout << "> ";
 		getline(cin, line);
 		if (!cin) break;
 		if (line.empty()) continue;
-		size_t i = 0;
-		vector<pair<double, string>> stuff;
-		char lastSign = '+';
-		for (;;) {
-			size_t j = line.find_first_of("+-", i);
-			string sub = trim(j == string::npos ? line.substr(i) : line.substr(i, j - i));
-			size_t k = sub.find_first_not_of(".0123456789");
-			if (k == string::npos) {
-				cout << "missing word" << endl;
-				goto again;
-			}
-			string dec = sub.substr(0, k);
-			string w = trim(sub.substr(k));
-			if (!engine.wordExists(w)) {
-				cout << "unknown word " << w << endl;
-				goto again;
-			}
-			double val = parse(dec);
-			if (lastSign == '-') val = -val;
-			stuff.push_back({val, w});
-			if (j == string::npos) break;
-			lastSign = line[j];
-			i = j+1;
-		}
+		vector<float> vec;
+		size_t i = line.find('*');
+		if (i == string::npos) {
+			if (!eval(engine, line, &vec)) continue;
 
-		int dim = engine.dimension;
-		vector<float> vec(dim);
-		trav(pa, stuff) {
-			vector<float> vec2 = engine.words[engine.getID(pa.second)];
+			float max = 0, min = 0;
 			rep(i,0,dim) {
-				vec[i] += pa.first * vec2[i];
+				max = std::max(max, vec[i]);
+				min = std::min(min, vec[i]);
 			}
-		}
+			max = std::max(max, -min);
+			if (max == 0) max = 1;
+			rep(i,0,dim) {
+				float v = vec[i] / max;
+				Color c = (v < 0 ? Color{-v, 0, 0} : Color{0, v, 0});
+				// c = getColor(v,-1,1);
+				printWithColor("█", c);
+			}
+			cout << endl;
 
-		float max = 0, min = 0;
-		rep(i,0,dim) {
-			max = std::max(max, vec[i]);
-			min = std::min(min, vec[i]);
+			auto v = engine.similarWords(vec);
+			cout << "Similar to:";
+			for (auto pa : v) {
+				cout << ' ' << pa.second << " (" << setprecision(3) << pa.first << ")";
+			}
+			cout << endl;
+			// cout << " (" << v.front().first << " ... " << v.back().first << ")" << endl;
+		} else {
+			string str1 = line.substr(0, i), str2 = line.substr(i+1);
+			vector<float> vec1, vec2;
+			if (!eval(engine, str1, &vec1)) continue;
+			if (!eval(engine, str2, &vec2)) continue;
+			float sum = 0;
+			rep(i,0,dim) sum += vec1[i] * vec2[i];
+			cout << "Similarity: " << sum << endl;
 		}
-		max = std::max(max, -min);
-		if (max == 0) max = 1;
-		rep(i,0,dim) {
-			float v = vec[i] / max;
-			Color c = (v < 0 ? Color{-v, 0, 0} : Color{0, v, 0});
-			// c = getColor(v,-1,1);
-			printWithColor("█", c);
-		}
-		cout << endl;
-
-		auto v = engine.similarWords(vec);
-		cout << "Similar to:";
-		for (auto pa : v) {
-			cout << ' ' << pa.second << " (" << setprecision(3) << pa.first << ")";
-		}
-		cout << endl;
-		// cout << " (" << v.front().first << " ... " << v.back().first << ")" << endl;
 	}
 }
