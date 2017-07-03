@@ -305,6 +305,10 @@ int main() {
 			cout << endl;
 
 			auto v = engine.similarWords(vec);
+			if (engine.wordExists(line)) {
+				double norm = engine.wordNorms[engine.getID(line)];
+				cout << "Norm: " << norm << endl;
+			}
 			cout << "Similar to:";
 			for (auto pa : v) {
 				cout << ' ' << pa.second << " (" << setprecision(3) << pa.first << ")";
