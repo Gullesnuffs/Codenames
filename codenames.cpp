@@ -162,7 +162,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			word2id[word] = wordID(i);
 			wordNorms[i] = norm;
 			if (modelid == Models::GLOVE) {
-				wordNorms[i] = pow(wordNorms[i], 0.4f);
+				wordNorms[i] = min(pow(wordNorms[i], 0.4f), 5.3f);
 			}
 		}
 		if (verbose) {

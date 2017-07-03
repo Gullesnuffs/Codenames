@@ -117,7 +117,7 @@ struct SimilarityEngine {
 			word2id[word] = wordID(i);
 			wordNorms[i] = norm;
 			if (modelid == Models::GLOVE) {
-				wordNorms[i] = pow(wordNorms[i], 0.4);
+				wordNorms[i] = min(pow(wordNorms[i], 0.4f), 5.3f);
 			}
 		}
 		if (!quiet) {
