@@ -283,7 +283,9 @@ struct Bot {
 	int vocabularySize = 50000;
 
 	// An approximation of the number of correct words we expect each turn
-	float valueOfOneTurn = 4;
+	float valueOfOneTurn = 3;
+
+	float overlapPenalty = 0.3;
 
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
@@ -442,6 +444,10 @@ struct Bot {
 		int number;
 		float score;
 		vector<ValuationItem> valuations;
+
+		bool operator<(const Result &other) const{
+			return score > other.score;
+		}
 	};
 
 	vector<Result> findBestWords(int count = 20) {
@@ -506,7 +512,8 @@ struct Bot {
 					if(k == i || k == j)
 						continue;
 					float newScore = bestScore[i] + bestScore[j];
-					if(newScore > bestScore[k] || (newScore > bestScore[k] - 0.01 && bestScore[i] > bestClueScore[k])){
+					newScore -= __builtin_popcount(i&j) * overlapPenalty;
+					if(newScore > bestScore[k]){
 						minMovesNeeded[k] = minMovesNeeded[j] + 1;
 						bestScore[k] = newScore;
 						bestClueScore[k] = bestScore[i];
@@ -516,6 +523,7 @@ struct Bot {
 				}
 			}
 
+			// Reconstruct the best sequence of words
 			int bits = (1<<myWordsFound)-1;
 			while(bits != 0){
 				wordID word = bestWord[bits];
@@ -526,6 +534,8 @@ struct Bot {
 				int number = wordScore.second.size();
 				res.push_back(Result{engine.getWord(word), number, score, val});
 			}
+			sort(all(res));
+			return res;
 		}
 
 		// Extract the top 'count' words that are not forbidden by the rules
