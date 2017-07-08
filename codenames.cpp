@@ -797,6 +797,7 @@ void batchMain() {
 		cin >> engine;
 		if (engine == "glove") engine = "models/glove.840B.330d.bin";
 		else if (engine == "conceptnet") engine = "models/conceptnet.bin";
+		else if (engine == "conceptnet-swe") engine = "models/conceptnet-swedish.bin";
 		else fail("Invalid engine parameter.");
 
 		Word2VecSimilarityEngine word2vecEngine;
