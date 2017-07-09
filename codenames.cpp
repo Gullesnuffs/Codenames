@@ -572,8 +572,8 @@ struct Bot {
 	}
 
 	void addOldClue(string clue){
-		auto wordID = engine.getID(clue);
-		if(wordID){
+		if(engine.wordExists(clue)){
+			auto wordID = engine.getID(clue);
 			oldClues.push_back(wordID);
 		}
 	}
