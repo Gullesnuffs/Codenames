@@ -75,9 +75,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 	map<string, wordID> word2id;
 	vector<vector<float>> words;
 	vector<string> wordsStrings;
-	enum Models {
-		GLOVE = 1, CONCEPTNET = 2
-	};
+	enum Models { GLOVE = 1, CONCEPTNET = 2 };
 
 	// All word vectors are stored normalized -- wordNorms holds their original squared norms.
 	// In some embeddings, words that have more (specific) meanings have higher norms.
@@ -119,9 +117,8 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 			return false;
 		}
 		if (verbose) {
-			cerr << "Loading word2vec (" << numberOfWords << " words, "
-				<< dimension << " dimensions, model " << modelid
-				<< '.' << formatVersion << ")... " << flush;
+			cerr << "Loading word2vec (" << numberOfWords << " words, " << dimension
+				 << " dimensions, model " << modelid << '.' << formatVersion << ")... " << flush;
 		}
 
 		const int bufSize = 1 << 16;
@@ -198,9 +195,11 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		return word2id.at(s);
 	}
 
-	/** Popularity of a word, the most popular word has a popularity of 1, the second most popular has a popularity of 2 etc. */
+	/** Popularity of a word, the most popular word has a popularity of 1, the second most popular
+	 * has a popularity of 2 etc. */
 	int getPopularity(wordID id) {
-		// Word IDs are the indices of words in the input file, which is assumed to be ordered according to popularity
+		// Word IDs are the indices of words in the input file, which is assumed to be ordered
+		// according to popularity
 		return id + 1;
 	}
 
@@ -285,9 +284,9 @@ struct Bot {
 	int vocabularySize = 50000;
 
 	// An approximation of the number of correct words we expect each turn
-	float valueOfOneTurn = 2.5;
+	float valueOfOneTurn = 2.5f;
 
-	float overlapPenalty = 0.3;
+	float overlapPenalty = 0.3f;
 
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
@@ -307,11 +306,7 @@ struct Bot {
 	};
 	vector<BoardWord> boardWords;
 	void addBoardWord(CardType type, const string &word) {
-		boardWords.push_back({
-			type,
-			word,
-			engine.getID(word)
-		});
+		boardWords.push_back({type, word, engine.getID(word)});
 	}
 
 	/** True if a is a super or substring of b or vice versa */
@@ -335,7 +330,7 @@ struct Bot {
 		CardType type;
 	};
 
-	pair<float, vector<wordID> > getWordScore(wordID word, vector<ValuationItem> *valuation) {
+	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation) {
 		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
 		v.clear();
@@ -363,17 +358,26 @@ struct Bot {
 		rep(i, 0, v.size()) {
 			float weight;
 			switch (v[i].second->type) {
-				case CardType::MINE: weight = fuzzyWeightMy; break;
-				case CardType::OPPONENT: weight = fuzzyWeightOpponent; break;
-				case CardType::CIVILIAN: weight = fuzzyWeightCivilian; break;
-				case CardType::ASSASSIN: weight = fuzzyWeightAssassin; break;
-				default: abort();
+				case CardType::MINE:
+					weight = fuzzyWeightMy;
+					break;
+				case CardType::OPPONENT:
+					weight = fuzzyWeightOpponent;
+					break;
+				case CardType::CIVILIAN:
+					weight = fuzzyWeightCivilian;
+					break;
+				case CardType::ASSASSIN:
+					weight = fuzzyWeightAssassin;
+					break;
+				default:
+					abort();
 			}
 			float contribution = weight * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 			baseScore += contribution;
 		}
 
-		for(auto oldClue : oldClues){
+		for (auto oldClue : oldClues) {
 			float sim = engine.similarity(oldClue, word);
 			sim += marginOldClue;
 			float contribution = fuzzyWeightOldClue * sigmoid((sim - fuzzyOffset) * fuzzyExponent);
@@ -411,7 +415,8 @@ struct Bot {
 			rep(j, i + 1, v.size()) {
 				CardType type2 = v[j].second->type;
 				if (type2 == CardType::ASSASSIN || type2 == CardType::OPPONENT) {
-					tmpScore = mult * marginWeight * sigmoid((lastGood - (-v[j].first)) * fuzzyExponent);
+					tmpScore =
+						mult * marginWeight * sigmoid((lastGood - (-v[j].first)) * fuzzyExponent);
 					break;
 				}
 			}
@@ -421,7 +426,7 @@ struct Bot {
 				bestCount = curCount;
 			}
 		}
-		while(targetWords.size() > bestCount)
+		while (targetWords.size() > bestCount)
 			targetWords.pop_back();
 
 		int popularity = engine.getPopularity(word);
@@ -432,10 +437,8 @@ struct Bot {
 		return make_pair(bestScore, targetWords);
 	}
 
-	void setWords(const vector<string> &_myWords,
-				  const vector<string> &_opponentWords,
-				  const vector<string> &_civilianWords,
-				  const vector<string> &_assassinWords) {
+	void setWords(const vector<string> &_myWords, const vector<string> &_opponentWords,
+				  const vector<string> &_civilianWords, const vector<string> &_assassinWords) {
 		myWords = _myWords;
 		opponentWords = _opponentWords;
 		civilianWords = _civilianWords;
@@ -457,7 +460,7 @@ struct Bot {
 		float score;
 		vector<ValuationItem> valuations;
 
-		bool operator<(const Result &other) const{
+		bool operator<(const Result &other) const {
 			return score > other.score;
 		}
 	};
@@ -468,11 +471,11 @@ struct Bot {
 		map<int, int> bitRepresentation;
 		int myWordsFound = 0;
 		rep(i, 0, boardWords.size()) {
-			if(boardWords[i].type == CardType::MINE && !hasInfoAbout.count(engine.getWord(boardWords[i].id))){
-				bitRepresentation[boardWords[i].id] = (1<<myWordsFound);
+			if (boardWords[i].type == CardType::MINE &&
+				!hasInfoAbout.count(engine.getWord(boardWords[i].id))) {
+				bitRepresentation[boardWords[i].id] = (1 << myWordsFound);
 				++myWordsFound;
-			}
-			else{
+			} else {
 				bitRepresentation[boardWords[i].id] = 0;
 			}
 		}
@@ -483,26 +486,27 @@ struct Bot {
 		vector<float> bestClueScore;
 		vector<wordID> bestWord;
 		vector<int> bestParent;
-		if(usePlanning){
-			minMovesNeeded = vector<int>((1<<myWordsFound), 1000);
-			bestScore = vector<float>((1<<myWordsFound), -1000);
-			bestClueScore = vector<float>((1<<myWordsFound), -1000);
-			bestWord = vector<wordID>(1<<myWordsFound);
-			bestParent = vector<int>(1<<myWordsFound);
+		if (usePlanning) {
+			minMovesNeeded = vector<int>((1 << myWordsFound), 1000);
+			bestScore = vector<float>((1 << myWordsFound), -1000);
+			bestClueScore = vector<float>((1 << myWordsFound), -1000);
+			bestWord = vector<wordID>(1 << myWordsFound);
+			bestParent = vector<int>(1 << myWordsFound);
 			minMovesNeeded[0] = 0;
 			bestScore[0] = 0;
 		}
 
 		for (wordID candidate : candidates) {
-			pair<float, vector<wordID> > res = getWordScore(candidate, nullptr);
+			pair<float, vector<wordID>> res = getWordScore(candidate, nullptr);
 			pq.push({{res.first, -((int)res.second.size())}, candidate});
-			if(res.second.size() > 0 && usePlanning){
+			if (res.second.size() > 0 && usePlanning) {
 				int bits = 0;
-				for (int matchedWord : res.second){
+				for (int matchedWord : res.second) {
 					bits |= bitRepresentation[matchedWord];
 				}
 				float newScore = res.first - valueOfOneTurn;
-				if(bits && newScore > bestScore[bits] && !forbiddenWord(engine.getWord(candidate))){
+				if (bits && newScore > bestScore[bits] &&
+					!forbiddenWord(engine.getWord(candidate))) {
 					minMovesNeeded[bits] = 1;
 					bestScore[bits] = newScore;
 					bestWord[bits] = candidate;
@@ -510,22 +514,22 @@ struct Bot {
 				}
 			}
 		}
-		
+
 		vector<Result> res;
 
-		if(usePlanning){
+		if (usePlanning) {
 			// Make a plan so that every word is covered by a clue in as few moves as possible
 
-			for (int i = 0; i < (1<<myWordsFound); ++i){
-				if(minMovesNeeded[i] != 1)
+			for (int i = 0; i < (1 << myWordsFound); ++i) {
+				if (minMovesNeeded[i] != 1)
 					continue;
-				for (int j = 0; j < (1<<myWordsFound); ++j){
-					int k = (i|j);
-					if(k == i || k == j)
+				for (int j = 0; j < (1 << myWordsFound); ++j) {
+					int k = (i | j);
+					if (k == i || k == j)
 						continue;
 					float newScore = bestScore[i] + bestScore[j];
-					newScore -= __builtin_popcount(i&j) * overlapPenalty;
-					if(newScore > bestScore[k]){
+					newScore -= __builtin_popcount(i & j) * overlapPenalty;
+					if (newScore > bestScore[k]) {
 						minMovesNeeded[k] = minMovesNeeded[j] + 1;
 						bestScore[k] = newScore;
 						bestClueScore[k] = bestScore[i];
@@ -536,14 +540,14 @@ struct Bot {
 			}
 
 			// Reconstruct the best sequence of words
-			int bits = (1<<myWordsFound)-1;
-			while(bits != 0){
+			int bits = (1 << myWordsFound) - 1;
+			while (bits != 0) {
 				wordID word = bestWord[bits];
 				bits = bestParent[bits];
 				vector<ValuationItem> val;
 				auto wordScore = getWordScore(word, &val);
 				float score = wordScore.first;
-				int number = wordScore.second.size();
+				int number = (int)wordScore.second.size();
 				res.push_back(Result{engine.getWord(word), number, score, val});
 			}
 			sort(all(res));
@@ -567,12 +571,12 @@ struct Bot {
 		return res;
 	}
 
-	void setHasInfo(string word){
+	void setHasInfo(string word) {
 		hasInfoAbout.insert(word);
 	}
 
-	void addOldClue(string clue){
-		if(engine.wordExists(clue)){
+	void addOldClue(string clue) {
+		if (engine.wordExists(clue)) {
 			auto wordID = engine.getID(clue);
 			oldClues.push_back(wordID);
 		}
@@ -591,7 +595,6 @@ string orderSuffix(int p) {
 		return "th";
 	}
 }
-
 
 class GameInterface {
 	typedef Bot::ValuationItem ValuationItem;
@@ -636,17 +639,16 @@ class GameInterface {
 			// Print a list with the best clues
 			rep(i, 0, (int)results.size()) {
 				auto res = results[i];
-				cout << (i + 1) << "\t"
-					<< setprecision(3) << fixed << res.score << "\t"
-					<< engine.stat(engine.getID(res.word)) << "\t"
-					<< res.word << " " << res.number << endl;
+				cout << (i + 1) << "\t" << setprecision(3) << fixed << res.score << "\t"
+					 << engine.stat(engine.getID(res.word)) << "\t" << res.word << " " << res.number
+					 << endl;
 			}
 			cout << endl;
 
 			int p = engine.getPopularity(engine.getID(best.word));
-			cout << "The best clue found is " << denormalize(best.word) << " " << best.number << endl;
-			cout << best.word << " is the " << p << orderSuffix(p)
-				<< " most popular word" << endl;
+			cout << "The best clue found is " << denormalize(best.word) << " " << best.number
+				 << endl;
+			cout << best.word << " is the " << p << orderSuffix(p) << " most popular word" << endl;
 		}
 	}
 
@@ -786,8 +788,10 @@ class GameInterface {
 string escapeJSON(const string &s) {
 	string res;
 	auto hex = [](unsigned int c) -> char {
-		if (c < 10) return (char)('0' + c);
-		else return (char)('a' + c - 10);
+		if (c < 10)
+			return (char)('0' + c);
+		else
+			return (char)('a' + c - 10);
 	};
 	trav(ch, s) {
 		unsigned char c = (unsigned char)ch;
@@ -814,10 +818,14 @@ void batchMain() {
 
 		string engine;
 		cin >> engine;
-		if (engine == "glove") engine = "models/glove.840B.330d.bin";
-		else if (engine == "conceptnet") engine = "models/conceptnet.bin";
-		else if (engine == "conceptnet-swe") engine = "models/conceptnet-swedish.bin";
-		else fail("Invalid engine parameter.");
+		if (engine == "glove")
+			engine = "models/glove.840B.330d.bin";
+		else if (engine == "conceptnet")
+			engine = "models/conceptnet.bin";
+		else if (engine == "conceptnet-swe")
+			engine = "models/conceptnet-swedish.bin";
+		else
+			fail("Invalid engine parameter.");
 
 		Word2VecSimilarityEngine word2vecEngine;
 		if (!word2vecEngine.load(engine, false))
@@ -832,30 +840,37 @@ void batchMain() {
 
 		string type;
 		while (cin >> type && type != "go") {
-			if(type == "hinted"){
+			if (type == "hinted") {
 				string word;
 				cin >> word;
 				bot.setHasInfo(word);
 				continue;
 			}
-			if(type == "clue"){
+			if (type == "clue") {
 				string word;
 				cin >> word;
 				bot.addOldClue(word);
 				continue;
 			}
 			CardType type2;
-			if (type == string(1, color)) type2 = CardType::MINE;
-			else if (type == "b" || type == "r") type2 = CardType::OPPONENT;
-			else if (type == "c") type2 = CardType::CIVILIAN;
-			else if (type == "a") type2 = CardType::ASSASSIN;
-			else { fail("Invalid type."); abort(); }
+			if (type == string(1, color))
+				type2 = CardType::MINE;
+			else if (type == "b" || type == "r")
+				type2 = CardType::OPPONENT;
+			else if (type == "c")
+				type2 = CardType::CIVILIAN;
+			else if (type == "a")
+				type2 = CardType::ASSASSIN;
+			else {
+				fail("Invalid type.");
+				abort();
+			}
 
 			string word;
 			cin >> word;
 			if (!bot.engine.wordExists(word)) {
 				cout << "{\"status\": 2, \"message\": \"Unknown word: '"
-					<< escapeJSON(denormalize(word)) << "'.\"}";
+					 << escapeJSON(denormalize(word)) << "'.\"}";
 				return;
 			}
 
@@ -864,8 +879,10 @@ void batchMain() {
 
 		int firstResult, numResults;
 		cin >> firstResult >> numResults;
-		if (firstResult < 0) fail("Invalid index");
-		if (numResults <= 0) fail("Invalid count");
+		if (firstResult < 0)
+			fail("Invalid index");
+		if (numResults <= 0)
+			fail("Invalid count");
 		firstResult = min(firstResult, 1000000);
 		numResults = min(numResults, 1000000);
 		vector<Bot::Result> results = bot.findBestWords(firstResult + numResults);
@@ -877,10 +894,14 @@ void batchMain() {
 
 		auto type2chr = [color](CardType type) -> char {
 			switch (type) {
-				case CardType::MINE: return color;
-				case CardType::OPPONENT: return (char)(color ^ 'r' ^ 'b');
-				case CardType::CIVILIAN: return 'c';
-				case CardType::ASSASSIN: return 'a';
+				case CardType::MINE:
+					return color;
+				case CardType::OPPONENT:
+					return (char)(color ^ 'r' ^ 'b');
+				case CardType::CIVILIAN:
+					return 'c';
+				case CardType::ASSASSIN:
+					return 'a';
 			}
 			abort();
 		};
@@ -894,9 +915,9 @@ void batchMain() {
 			bool first = true;
 			trav(item, results[index].valuations) {
 				cout << (first ? "\n" : ",\n") << "    {"
-					<< "\"score\": " << item.score << ", "
-					<< "\"word\": \"" << escapeJSON(denormalize(item.word)) << "\", "
-					<< "\"type\": \"" << type2chr(item.type) << "\"}";
+					 << "\"score\": " << item.score << ", "
+					 << "\"word\": \"" << escapeJSON(denormalize(item.word)) << "\", "
+					 << "\"type\": \"" << type2chr(item.type) << "\"}";
 				first = false;
 			}
 			cout << "\n  ]}";
@@ -915,7 +936,7 @@ void batchMain() {
 	}
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 	if (argc == 2 && argv[1] == string("--batch")) {
 		batchMain();
 		return 0;
