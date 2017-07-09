@@ -239,6 +239,7 @@ struct Bot {
 	float marginCivilians = 0.02f;
 	float marginOpponentWords = 0.04f;
 	float marginAssassins = 0.07f;
+	float marginOldClue = -0.25f;
 
 	// Constants used in scoring function based
 	// on the sigmoid function of the similarities
@@ -246,6 +247,7 @@ struct Bot {
 	float fuzzyWeightOpponent = -0.1f;
 	float fuzzyWeightMy = 0.1f;
 	float fuzzyWeightCivilian = -0.05f;
+	float fuzzyWeightOldClue = -2.0f;
 	float fuzzyExponent = 15;
 	float fuzzyOffset = 0.3f;
 
@@ -283,12 +285,15 @@ struct Bot {
 	int vocabularySize = 50000;
 
 	// An approximation of the number of correct words we expect each turn
-	float valueOfOneTurn = 3;
+	float valueOfOneTurn = 2.5;
 
 	float overlapPenalty = 0.3;
 
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
+
+	// A list of all clues that have already been given to the team
+	vector<wordID> oldClues;
 
 	SimilarityEngine &engine;
 
@@ -365,6 +370,13 @@ struct Bot {
 				default: abort();
 			}
 			float contribution = weight * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
+			baseScore += contribution;
+		}
+
+		for(auto oldClue : oldClues){
+			float sim = engine.similarity(oldClue, word);
+			sim += marginOldClue;
+			float contribution = fuzzyWeightOldClue * sigmoid((sim - fuzzyOffset) * fuzzyExponent);
 			baseScore += contribution;
 		}
 
@@ -557,6 +569,13 @@ struct Bot {
 
 	void setHasInfo(string word){
 		hasInfoAbout.insert(word);
+	}
+
+	void addOldClue(string clue){
+		auto wordID = engine.getID(clue);
+		if(wordID){
+			oldClues.push_back(wordID);
+		}
 	}
 };
 
@@ -817,6 +836,12 @@ void batchMain() {
 				string word;
 				cin >> word;
 				bot.setHasInfo(word);
+				continue;
+			}
+			if(type == "clue"){
+				string word;
+				cin >> word;
+				bot.addOldClue(word);
 				continue;
 			}
 			CardType type2;
