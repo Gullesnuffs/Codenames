@@ -288,6 +288,10 @@ struct Bot {
 
 	float overlapPenalty = 0.3f;
 
+	// Apply penalties to clues with small numbers based on the number of
+	// remaining opponent words
+	float desperationFactor[4] = {1.0f, 0.2f, 0.4f, 0.7f};
+
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
 
@@ -333,15 +337,23 @@ struct Bot {
 	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation) {
 		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
+		int myWordsLeft = 0, opponentWordsLeft = 0;
 		v.clear();
 		rep(i, 0, boardWords.size()) {
 			float sim = engine.similarity(boardWords[i].id, word);
-			if (boardWords[i].type == CardType::CIVILIAN)
+			if (boardWords[i].type == CardType::CIVILIAN){
 				sim += marginCivilians;
-			if (boardWords[i].type == CardType::OPPONENT)
+			}
+			else if (boardWords[i].type == CardType::OPPONENT){
 				sim += marginOpponentWords;
-			if (boardWords[i].type == CardType::ASSASSIN)
+				opponentWordsLeft++;
+			}
+			else if (boardWords[i].type == CardType::ASSASSIN){
 				sim += marginAssassins;
+			}
+			else{
+				myWordsLeft++;
+			}
 			v.push_back({-sim, &boardWords[i]});
 		}
 		sort(all(v), [&](const Pa &a, const Pa &b) { return a.first < b.first; });
@@ -421,6 +433,10 @@ struct Bot {
 				}
 			}
 			tmpScore += baseScore + curScore;
+			if (curCount < myWordsLeft - 1 && opponentWordsLeft <= 3){
+				// Apply penalty because we can't win this turn and the opponent will probably win next turn
+				tmpScore *= desperationFactor[opponentWordsLeft];
+			}
 			if (tmpScore > bestScore) {
 				bestScore = tmpScore;
 				bestCount = curCount;
