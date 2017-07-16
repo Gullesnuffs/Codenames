@@ -233,6 +233,7 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 
 struct Bot {
 	enum class CardType { MINE, OPPONENT, CIVILIAN, ASSASSIN };
+	enum class Difficulty { EASY, MEDIUM, HARD };
 
 	// Give a similarity bonus to "bad" words
 	float marginCivilians;
@@ -303,9 +304,8 @@ struct Bot {
 
 	SimilarityEngine &engine;
 	
-	void setDifficulty(string difficulty) {
-		cerr << "Setting difficulty to " << difficulty << endl;
-		if(difficulty == "easy"){
+	void setDifficulty(Difficulty difficulty) {
+		if (difficulty == Difficulty::EASY) {
 			marginCivilians = 0.07f;
 			marginOpponentWords = 0.1f;
 			marginAssassins = 0.15f;
@@ -335,7 +335,7 @@ struct Bot {
 			desperationFactor[3] = 0.9f;
 			singleWordPenalty = -0.5f;
 		}
-		else if(difficulty == "medium"){
+		else if (difficulty == Difficulty::MEDIUM) {
 			marginCivilians = 0.02f;
 			marginOpponentWords = 0.04f;
 			marginAssassins = 0.07f;
@@ -365,7 +365,8 @@ struct Bot {
 			desperationFactor[3] = 0.7f;
 			singleWordPenalty = -0.5f;
 		}
-		else if(difficulty == "hard"){
+		else {
+			assert(difficulty == Difficulty::HARD);
 			marginCivilians = 0.01f;
 			marginOpponentWords = 0.02f;
 			marginAssassins = 0.04f;
@@ -395,14 +396,11 @@ struct Bot {
 			desperationFactor[3] = 0.5f;
 			singleWordPenalty = -0.5f;
 		}
-		else{
-			cerr << "No such difficulty setting: " << difficulty << endl;
-		}
 	}
 
 
 	Bot(SimilarityEngine &engine) : engine(engine) {
-		setDifficulty("Easy");
+		setDifficulty(Difficulty::EASY);
 	}
 
 	vector<string> myWords, opponentWords, civilianWords, assassinWords;
@@ -941,6 +939,7 @@ string escapeJSON(const string &s) {
 
 void batchMain() {
 	typedef Bot::CardType CardType;
+	typedef Bot::Difficulty Difficulty;
 	auto fail = [](const char *message) {
 		cout << "{\"status\": 0, \"message\": \"" << message << "\"}";
 		exit(0);
@@ -985,10 +984,21 @@ void batchMain() {
 				bot.addOldClue(word);
 				continue;
 			}
-			if (type == "difficulty" ) {
+			if (type == "difficulty") {
 				string difficulty;
 				cin >> difficulty;
-				bot.setDifficulty(difficulty);
+				Difficulty diff;
+				if (difficulty == "easy")
+					diff = Difficulty::EASY;
+				else if (difficulty == "medium")
+					diff = Difficulty::MEDIUM;
+				else if (difficulty == "hard")
+					diff = Difficulty::HARD;
+				else {
+					fail("Invalid difficulty.");
+					abort();
+				}
+				bot.setDifficulty(diff);
 				continue;
 			}
 			CardType type2;
