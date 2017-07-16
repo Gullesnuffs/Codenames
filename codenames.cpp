@@ -235,62 +235,65 @@ struct Bot {
 	enum class CardType { MINE, OPPONENT, CIVILIAN, ASSASSIN };
 
 	// Give a similarity bonus to "bad" words
-	float marginCivilians = 0.02f;
-	float marginOpponentWords = 0.04f;
-	float marginAssassins = 0.07f;
-	float marginOldClue = -0.25f;
+	float marginCivilians;
+	float marginOpponentWords;
+	float marginAssassins;
+	float marginOldClue;
 
 	// Constants used in scoring function based
 	// on the sigmoid function of the similarities
-	float fuzzyWeightAssassin = -0.2f;
-	float fuzzyWeightOpponent = -0.1f;
-	float fuzzyWeightMy = 0.1f;
-	float fuzzyWeightCivilian = -0.05f;
-	float fuzzyWeightOldClue = -2.0f;
-	float fuzzyExponent = 15;
-	float fuzzyOffset = 0.3f;
+	float fuzzyWeightAssassin;
+	float fuzzyWeightOpponent;
+	float fuzzyWeightMy;
+	float fuzzyWeightCivilian;
+	float fuzzyWeightOldClue;
+	float fuzzyExponent;
+	float fuzzyOffset;
 
 	// Assume that we will never succeed if the similarity
 	// is at most minSimilarity
-	float minSimilarity = 0.2f;
+	float minSimilarity;
 
 	// Good words with smaller similarity than civilians and opponent
 	// spies are worth less
-	float multiplierAfterBadWord = 0.7f;
+	float multiplierAfterBadWord;
 
 	// How bad is it if there is an opponent word with high similarity
-	float weightOpponent = -1.5f;
+	float weightOpponent;
 
 	// How bad is it if there is a civilian word with high similarity
-	float weightCivilian = -0.2f;
+	float weightCivilian;
 
 	// How important is it that the last good word has greater
 	// similarity than the next bad word
-	float marginWeight = 0.1f;
+	float marginWeight;
 
 	// Number of words that are considered common
-	int commonWordLimit = 1000;
+	int commonWordLimit;
 
 	// Avoid common words
-	float commonWordWeight = 0.9f;
+	float commonWordWeight;
 
 	// Number of words that are not considered rare
-	int rareWordLimit = 15000;
+	int rareWordLimit;
 
 	// Avoid rare words
-	float rareWordWeight = 0.8f;
+	float rareWordWeight;
 
 	// Consider only the 50000 most common words
-	int vocabularySize = 50000;
+	int vocabularySize;
 
 	// An approximation of the number of correct words we expect each turn
-	float valueOfOneTurn = 2.5f;
+	float valueOfOneTurn;
 
-	float overlapPenalty = 0.3f;
+	float overlapPenalty;
 
 	// Apply penalties to clues with small numbers based on the number of
 	// remaining opponent words
-	float desperationFactor[4] = {1.0f, 0.2f, 0.4f, 0.7f};
+	float desperationFactor[4];
+
+	// Apply a penalty to words that only cover a single word
+	float singleWordPenalty;
 
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
@@ -299,8 +302,105 @@ struct Bot {
 	vector<wordID> oldClues;
 
 	SimilarityEngine &engine;
+	
+	void setDifficulty(string difficulty) {
+		cerr << "Setting difficulty to " << difficulty << endl;
+		if(difficulty == "Easy"){
+			marginCivilians = 0.07f;
+			marginOpponentWords = 0.1f;
+			marginAssassins = 0.15f;
+			marginOldClue = -0.25f;
+			fuzzyWeightAssassin = -0.4f;
+			fuzzyWeightOpponent = -0.2f;
+			fuzzyWeightMy = 0.1f;
+			fuzzyWeightCivilian = -0.1f;
+			fuzzyWeightOldClue = -2.0f;
+			fuzzyExponent = 15;
+			fuzzyOffset = 0.35f;
+			minSimilarity = 0.3f;
+			multiplierAfterBadWord = 0.5f;
+			weightOpponent = -2.0f;
+			weightCivilian = -0.4f;
+			marginWeight = 0.2f;
+			commonWordLimit = 1000;
+			commonWordWeight = 0.9f;
+			rareWordLimit = 10000;
+			rareWordWeight = 0.8f;
+			vocabularySize = 30000;
+			valueOfOneTurn = 2.0f;
+			overlapPenalty = 0.3f;
+			desperationFactor[0] = 1.0f;
+			desperationFactor[1] = 0.5f;
+			desperationFactor[2] = 0.7f;
+			desperationFactor[3] = 0.9f;
+			singleWordPenalty = -0.5f;
+		}
+		else if(difficulty == "Medium"){
+			marginCivilians = 0.02f;
+			marginOpponentWords = 0.04f;
+			marginAssassins = 0.07f;
+			marginOldClue = -0.25f;
+			fuzzyWeightAssassin = -0.2f;
+			fuzzyWeightOpponent = -0.1f;
+			fuzzyWeightMy = 0.1f;
+			fuzzyWeightCivilian = -0.05f;
+			fuzzyWeightOldClue = -2.0f;
+			fuzzyExponent = 15;
+			fuzzyOffset = 0.3f;
+			minSimilarity = 0.2f;
+			multiplierAfterBadWord = 0.7f;
+			weightOpponent = -1.5f;
+			weightCivilian = -0.2f;
+			marginWeight = 0.1f;
+			commonWordLimit = 1000;
+			commonWordWeight = 0.9f;
+			rareWordLimit = 15000;
+			rareWordWeight = 0.8f;
+			vocabularySize = 50000;
+			valueOfOneTurn = 2.5f;
+			overlapPenalty = 0.4f;
+			desperationFactor[0] = 1.0f;
+			desperationFactor[1] = 0.2f;
+			desperationFactor[2] = 0.4f;
+			desperationFactor[3] = 0.7f;
+			singleWordPenalty = -0.5f;
+		}
+		else if(difficulty == "Hard"){
+			marginCivilians = 0.01f;
+			marginOpponentWords = 0.02f;
+			marginAssassins = 0.04f;
+			marginOldClue = -0.2f;
+			fuzzyWeightAssassin = -0.15f;
+			fuzzyWeightOpponent = -0.05f;
+			fuzzyWeightMy = 0.1f;
+			fuzzyWeightCivilian = -0.03f;
+			fuzzyWeightOldClue = -1.5f;
+			fuzzyExponent = 15;
+			fuzzyOffset = 0.25f;
+			minSimilarity = 0.15f;
+			multiplierAfterBadWord = 0.8f;
+			weightOpponent = -1.2f;
+			weightCivilian = -0.15f;
+			marginWeight = 0.1f;
+			commonWordLimit = 1000;
+			commonWordWeight = 0.9f;
+			rareWordLimit = 20000;
+			rareWordWeight = 0.9f;
+			vocabularySize = 50000;
+			valueOfOneTurn = 3.0f;
+			overlapPenalty = 0.5f;
+			desperationFactor[0] = 1.0f;
+			desperationFactor[1] = 0.1f;
+			desperationFactor[2] = 0.3f;
+			desperationFactor[3] = 0.5f;
+			singleWordPenalty = -0.5f;
+		}
+	}
 
-	Bot(SimilarityEngine &engine) : engine(engine) {}
+
+	Bot(SimilarityEngine &engine) : engine(engine) {
+		setDifficulty("Easy");
+	}
 
 	vector<string> myWords, opponentWords, civilianWords, assassinWords;
 	struct BoardWord {
@@ -396,11 +496,17 @@ struct Bot {
 			baseScore += contribution;
 		}
 
-		int bestCount = 0;
-		float curScore = 0, bestScore = 0, lastGood = 0;
+		int bestCount = 1;
+		float curScore = 0, bestScore = baseScore - 10, lastGood = 0;
 		int curCount = 0;
 		float mult = 1;
 		vector<wordID> targetWords;
+		rep(i, 0, v.size()) {
+			CardType type = v[i].second->type;
+			if (type == CardType::MINE) {
+				targetWords.push_back(v[i].second->id);
+			}
+		}
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
@@ -413,7 +519,6 @@ struct Bot {
 				continue;
 			}
 			if (type == CardType::MINE) {
-				targetWords.push_back(v[i].second->id);
 				lastGood = -v[i].first;
 				curScore += mult * sigmoid((-v[i].first - fuzzyOffset) * fuzzyExponent);
 				++curCount;
@@ -433,7 +538,10 @@ struct Bot {
 				}
 			}
 			tmpScore += baseScore + curScore;
-			if (curCount < myWordsLeft - 1 && opponentWordsLeft <= 3){
+			if (curCount == 1) {
+				tmpScore += singleWordPenalty;
+			}
+			if (curCount < myWordsLeft - 1 && opponentWordsLeft <= 3) {
 				// Apply penalty because we can't win this turn and the opponent will probably win next turn
 				tmpScore *= desperationFactor[opponentWordsLeft];
 			}
@@ -866,6 +974,12 @@ void batchMain() {
 				string word;
 				cin >> word;
 				bot.addOldClue(word);
+				continue;
+			}
+			if (type == "difficulty" ) {
+				string difficulty;
+				cin >> difficulty;
+				bot.setDifficulty(difficulty);
 				continue;
 			}
 			CardType type2;
