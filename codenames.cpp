@@ -305,7 +305,7 @@ struct Bot {
 	
 	void setDifficulty(string difficulty) {
 		cerr << "Setting difficulty to " << difficulty << endl;
-		if(difficulty == "Easy"){
+		if(difficulty == "easy"){
 			marginCivilians = 0.07f;
 			marginOpponentWords = 0.1f;
 			marginAssassins = 0.15f;
@@ -335,7 +335,7 @@ struct Bot {
 			desperationFactor[3] = 0.9f;
 			singleWordPenalty = -0.5f;
 		}
-		else if(difficulty == "Medium"){
+		else if(difficulty == "medium"){
 			marginCivilians = 0.02f;
 			marginOpponentWords = 0.04f;
 			marginAssassins = 0.07f;
@@ -365,7 +365,7 @@ struct Bot {
 			desperationFactor[3] = 0.7f;
 			singleWordPenalty = -0.5f;
 		}
-		else if(difficulty == "Hard"){
+		else if(difficulty == "hard"){
 			marginCivilians = 0.01f;
 			marginOpponentWords = 0.02f;
 			marginAssassins = 0.04f;
@@ -394,6 +394,9 @@ struct Bot {
 			desperationFactor[2] = 0.3f;
 			desperationFactor[3] = 0.5f;
 			singleWordPenalty = -0.5f;
+		}
+		else{
+			cerr << "No such difficulty setting: " << difficulty << endl;
 		}
 	}
 
