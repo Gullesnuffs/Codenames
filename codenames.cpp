@@ -434,7 +434,7 @@ struct Bot {
 		CardType type;
 	};
 
-	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation) {
+	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation, bool doInflate) {
 		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
 		int myWordsLeft = 0, opponentWordsLeft = 0;
@@ -442,14 +442,20 @@ struct Bot {
 		rep(i, 0, boardWords.size()) {
 			float sim = engine.similarity(boardWords[i].id, word);
 			if (boardWords[i].type == CardType::CIVILIAN){
-				sim += marginCivilians;
+				if(doInflate){
+					sim += marginCivilians;
+				}
 			}
 			else if (boardWords[i].type == CardType::OPPONENT){
-				sim += marginOpponentWords;
+				if(doInflate){
+					sim += marginOpponentWords;
+				}
 				opponentWordsLeft++;
 			}
 			else if (boardWords[i].type == CardType::ASSASSIN){
-				sim += marginAssassins;
+				if(doInflate){
+					sim += marginAssassins;
+				}
 			}
 			else{
 				myWordsLeft++;
@@ -621,7 +627,7 @@ struct Bot {
 		}
 
 		for (wordID candidate : candidates) {
-			pair<float, vector<wordID>> res = getWordScore(candidate, nullptr);
+			pair<float, vector<wordID>> res = getWordScore(candidate, nullptr, true);
 			pq.push({{res.first, -((int)res.second.size())}, candidate});
 			if (res.second.size() > 0 && usePlanning) {
 				int bits = 0;
@@ -669,7 +675,7 @@ struct Bot {
 				wordID word = bestWord[bits];
 				bits = bestParent[bits];
 				vector<ValuationItem> val;
-				auto wordScore = getWordScore(word, &val);
+				auto wordScore = getWordScore(word, &val, false);
 				float score = wordScore.first;
 				int number = (int)wordScore.second.size();
 				res.push_back(Result{engine.getWord(word), number, score, val});
@@ -687,7 +693,7 @@ struct Bot {
 				int number = -pa.first.second;
 				wordID word = pa.second;
 				vector<ValuationItem> val;
-				getWordScore(word, &val);
+				getWordScore(word, &val, false);
 				res.push_back(Result{engine.getWord(word), number, score, val});
 			}
 		}
@@ -854,7 +860,7 @@ class GameInterface {
 			return;
 		}
 		vector<ValuationItem> val;
-		pair<float, vector<wordID>> res = bot.getWordScore(engine.getID(word), &val);
+		pair<float, vector<wordID>> res = bot.getWordScore(engine.getID(word), &val, true);
 		printValuation(word, val);
 		cout << denormalize(word) << " " << res.second.size() << " has score " << res.first << endl;
 	}
