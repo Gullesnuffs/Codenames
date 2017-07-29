@@ -8,7 +8,9 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
+
 using namespace std;
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
@@ -231,6 +233,32 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 	}
 };
 
+enum InappropriateMode {
+	BlockInappropriate,
+	AllowInappropriate,
+	BoostInappropriate,
+};
+
+struct InappropriateEngine {
+	unordered_set<string> inappropriateWords;
+
+	void load(string fileName) {
+		ifstream fin(fileName);
+		string s;
+		while (getline(fin, s)) {
+			inappropriateWords.insert(s);
+			// Pluralize!
+			inappropriateWords.insert(s + "s");
+			// Adjectivize!
+			inappropriateWords.insert(s + "y");
+		}
+	}
+
+	bool isInappropriate(string word) {
+		return inappropriateWords.count(normalize(word));
+	}
+};
+
 struct Bot {
 	enum class CardType { MINE, OPPONENT, CIVILIAN, ASSASSIN };
 	enum class Difficulty { EASY, MEDIUM, HARD };
@@ -296,6 +324,12 @@ struct Bot {
 	// Apply a penalty to words that only cover a single word
 	float singleWordPenalty;
 
+	InappropriateMode inappropriateMode;
+
+	// Score multiplier for inappropriate words when using the BoostInappropriate mode
+	// See inappropriateMode
+	float inappropriateBoost = 3;
+
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
 
@@ -303,7 +337,8 @@ struct Bot {
 	vector<wordID> oldClues;
 
 	SimilarityEngine &engine;
-	
+	InappropriateEngine &inappropriateEngine;
+
 	void setDifficulty(Difficulty difficulty) {
 		if (difficulty == Difficulty::EASY) {
 			marginCivilians = 0.07f;
@@ -334,8 +369,7 @@ struct Bot {
 			desperationFactor[2] = 0.7f;
 			desperationFactor[3] = 0.9f;
 			singleWordPenalty = -0.5f;
-		}
-		else if (difficulty == Difficulty::MEDIUM) {
+		} else if (difficulty == Difficulty::MEDIUM) {
 			marginCivilians = 0.02f;
 			marginOpponentWords = 0.04f;
 			marginAssassins = 0.07f;
@@ -364,8 +398,7 @@ struct Bot {
 			desperationFactor[2] = 0.4f;
 			desperationFactor[3] = 0.7f;
 			singleWordPenalty = -0.5f;
-		}
-		else {
+		} else {
 			assert(difficulty == Difficulty::HARD);
 			marginCivilians = 0.01f;
 			marginOpponentWords = 0.02f;
@@ -398,8 +431,8 @@ struct Bot {
 		}
 	}
 
-
-	Bot(SimilarityEngine &engine) : engine(engine) {
+	Bot(SimilarityEngine &engine, InappropriateEngine &inappropriateEngine)
+		: engine(engine), inappropriateEngine(inappropriateEngine) {
 		setDifficulty(Difficulty::EASY);
 	}
 
@@ -435,36 +468,40 @@ struct Bot {
 		CardType type;
 	};
 
-	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation, bool doInflate) {
+	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation,
+											 bool doInflate) {
 		typedef pair<float, BoardWord *> Pa;
 		static vector<Pa> v;
 		int myWordsLeft = 0, opponentWordsLeft = 0;
 		v.clear();
+
+		// Iterate through all words and check how similar the word is to every word on the board.
+		// Add some bonuses to account for the colors of the words.
 		rep(i, 0, boardWords.size()) {
 			float sim = engine.similarity(boardWords[i].id, word);
-			if (boardWords[i].type == CardType::CIVILIAN){
-				if(doInflate){
+			if (boardWords[i].type == CardType::CIVILIAN) {
+				if (doInflate) {
 					sim += marginCivilians;
 				}
-			}
-			else if (boardWords[i].type == CardType::OPPONENT){
-				if(doInflate){
+			} else if (boardWords[i].type == CardType::OPPONENT) {
+				if (doInflate) {
 					sim += marginOpponentWords;
 				}
 				opponentWordsLeft++;
-			}
-			else if (boardWords[i].type == CardType::ASSASSIN){
-				if(doInflate){
+			} else if (boardWords[i].type == CardType::ASSASSIN) {
+				if (doInflate) {
 					sim += marginAssassins;
 				}
-			}
-			else{
+			} else {
 				myWordsLeft++;
 			}
 			v.push_back({-sim, &boardWords[i]});
 		}
+
+		// Sort the similarities to the words on the board
 		sort(all(v), [&](const Pa &a, const Pa &b) { return a.first < b.first; });
 
+		// Store the scores for possible use later (e.g show in the client)
 		if (valuation != nullptr) {
 			valuation->clear();
 			trav(it, v) {
@@ -496,6 +533,7 @@ struct Bot {
 			baseScore += contribution;
 		}
 
+		// Avoid clues that are similar to clues the bot has given earlier
 		for (auto oldClue : oldClues) {
 			float sim = engine.similarity(oldClue, word);
 			sim += marginOldClue;
@@ -507,13 +545,10 @@ struct Bot {
 		float curScore = 0, bestScore = baseScore - 10, lastGood = 0;
 		int curCount = 0;
 		float mult = 1;
-		vector<wordID> targetWords;
-		rep(i, 0, v.size()) {
-			CardType type = v[i].second->type;
-			if (type == CardType::MINE) {
-				targetWords.push_back(v[i].second->id);
-			}
-		}
+
+		// Iterate through the words in order and do some scoring...
+		// bestCount is the number of words the bot thinks that the rest of the team will manage to
+		// guess
 		rep(i, 0, v.size()) {
 			if (-v[i].first < minSimilarity)
 				break;
@@ -549,7 +584,8 @@ struct Bot {
 				tmpScore += singleWordPenalty;
 			}
 			if (curCount < myWordsLeft - 1 && opponentWordsLeft <= 3) {
-				// Apply penalty because we can't win this turn and the opponent will probably win next turn
+				// Apply penalty because we can't win this turn and the opponent will probably win
+				// next turn
 				tmpScore *= desperationFactor[opponentWordsLeft];
 			}
 			if (tmpScore > bestScore) {
@@ -557,14 +593,41 @@ struct Bot {
 				bestCount = curCount;
 			}
 		}
-		while (targetWords.size() > bestCount)
-			targetWords.pop_back();
+
+		// Create a list of all our words on the board that the bot thinks that the rest of the team
+		// will guess
+		vector<wordID> targetWords;
+		rep(i, 0, v.size()) {
+			if (targetWords.size() >= bestCount)
+				break;
+			CardType type = v[i].second->type;
+			if (type == CardType::MINE) {
+				targetWords.push_back(v[i].second->id);
+			}
+		}
 
 		int popularity = engine.getPopularity(word);
 		if (popularity < commonWordLimit)
 			bestScore *= commonWordWeight;
 		else if (popularity > rareWordLimit)
 			bestScore *= rareWordWeight;
+
+		bool isInappropriate = inappropriateEngine.isInappropriate(engine.getWord(word));
+		switch (inappropriateMode) {
+			case BlockInappropriate:
+				if (isInappropriate) {
+					bestScore = -numeric_limits<float>::infinity();
+				}
+				break;
+			case BoostInappropriate:
+				if (isInappropriate) {
+					bestScore *= inappropriateBoost;
+				}
+				break;
+			case AllowInappropriate:
+				break;
+		}
+
 		return make_pair(bestScore, targetWords);
 	}
 
@@ -881,7 +944,8 @@ class GameInterface {
 	}
 
    public:
-	GameInterface(SimilarityEngine &engine) : engine(engine), bot(engine) {}
+	GameInterface(SimilarityEngine &engine, InappropriateEngine &inappropriateEngine)
+		: engine(engine), bot(engine, inappropriateEngine) {}
 
 	void run() {
 		cout << "Type \"help\" for help" << endl;
@@ -963,7 +1027,9 @@ void batchMain() {
 		if (!word2vecEngine.load(engine, false))
 			fail("Unable to load similarity engine.");
 
-		Bot bot(word2vecEngine);
+		InappropriateEngine inappropriateEngine;
+		inappropriateEngine.load("inappropriate.txt");
+		Bot bot(word2vecEngine, inappropriateEngine);
 
 		char color;
 		cin >> color;
@@ -999,6 +1065,22 @@ void batchMain() {
 					abort();
 				}
 				bot.setDifficulty(diff);
+				continue;
+			}
+			if (type == "inappropriate") {
+				string mode;
+				cin >> mode;
+				if (mode == "block") {
+					bot.inappropriateMode = BlockInappropriate;
+				} else if (mode == "allow") {
+					bot.inappropriateMode = AllowInappropriate;
+				} else if (mode == "boost") {
+					bot.inappropriateMode = BoostInappropriate;
+				} else {
+					fail(
+						"Inappropriate inappropriate mode. Expected one of [block, allow, boost].");
+					abort();
+				}
 				continue;
 			}
 			CardType type2;
@@ -1097,7 +1179,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	GameInterface interface(word2vecEngine);
+	InappropriateEngine inappropriateEngine;
+	inappropriateEngine.load("inappropriate.txt");
+
+	GameInterface interface(word2vecEngine, inappropriateEngine);
 	interface.run();
 	return 0;
 }
