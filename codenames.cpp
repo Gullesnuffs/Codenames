@@ -341,17 +341,17 @@ struct Bot {
 
 	void setDifficulty(Difficulty difficulty) {
 		if (difficulty == Difficulty::EASY) {
-			marginCivilians = 0.07f;
-			marginOpponentWords = 0.1f;
-			marginAssassins = 0.15f;
+			marginCivilians = 0.08f;
+			marginOpponentWords = 0.16f;
+			marginAssassins = 0.20f;
 			marginOldClue = -0.25f;
-			fuzzyWeightAssassin = -0.4f;
+			fuzzyWeightAssassin = -0.5f;
 			fuzzyWeightOpponent = -0.2f;
 			fuzzyWeightMy = 0.1f;
 			fuzzyWeightCivilian = -0.1f;
 			fuzzyWeightOldClue = -2.0f;
 			fuzzyExponent = 15;
-			fuzzyOffset = 0.35f;
+			fuzzyOffset = 0.4f;
 			minSimilarity = 0.3f;
 			multiplierAfterBadWord = 0.5f;
 			weightOpponent = -2.0f;
@@ -368,7 +368,7 @@ struct Bot {
 			desperationFactor[1] = 0.5f;
 			desperationFactor[2] = 0.7f;
 			desperationFactor[3] = 0.9f;
-			singleWordPenalty = -0.5f;
+			singleWordPenalty = -0.3f;
 		} else if (difficulty == Difficulty::MEDIUM) {
 			marginCivilians = 0.02f;
 			marginOpponentWords = 0.04f;
@@ -427,7 +427,7 @@ struct Bot {
 			desperationFactor[1] = 0.1f;
 			desperationFactor[2] = 0.3f;
 			desperationFactor[3] = 0.5f;
-			singleWordPenalty = -0.5f;
+			singleWordPenalty = -0.6f;
 		}
 	}
 
@@ -736,6 +736,7 @@ struct Bot {
 			// Reconstruct the best sequence of words
 			int bits = (1 << myWordsFound) - 1;
 			while (bits != 0) {
+				cerr << bits << endl;
 				wordID word = bestWord[bits];
 				bits = bestParent[bits];
 				vector<ValuationItem> val;
