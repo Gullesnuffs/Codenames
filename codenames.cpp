@@ -328,7 +328,7 @@ struct Bot {
 
 	// Score multiplier for inappropriate words when using the BoostInappropriate mode
 	// See inappropriateMode
-	float inappropriateBoost = 3;
+	float inappropriateBoost = 4;
 
 	// A set of strings for which the bot has already provided clues
 	set<string> hasInfoAbout;
