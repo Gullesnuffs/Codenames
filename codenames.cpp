@@ -1241,8 +1241,8 @@ void serverMain() {
 			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i] << endl;
 		}
 
-		bool worked = true;
-		while(worked) {
+		bool worked = false;
+		while(!worked) {
 			worked = true;
 
 			cout << "Enter order as e.g '2 4'. Items which are not included are assumed to be very unrelated to the query." << endl;
@@ -1257,8 +1257,9 @@ void serverMain() {
 			if (line == "") {
 				cout << COLOR_RED << "Are you sure that no words are related to the query? [yes/no]" << RESET << endl;
 				string answer;
-				cin >> answer;
+				getline(cin, answer);
 				if (answer != "yes") {
+					worked = false;
 					continue;
 				}
 			}
