@@ -10,6 +10,8 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <random>
+#include <sstream>
 
 using namespace std;
 
@@ -1168,7 +1170,142 @@ void batchMain() {
 	}
 }
 
+void serverMain() {
+	cin.exceptions(ios::failbit | ios::eofbit | ios::badbit);
+	srand(time(0));
+	stringstream fileName;
+	auto t = time(nullptr);
+    auto tm = *localtime(&t);
+	fileName << "testing/output-" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ".txt";
+	ofstream output(fileName.str());
+
+	string engine = "conceptnet";
+	if (engine == "glove")
+		engine = "models/glove.840B.330d.bin";
+	else if (engine == "conceptnet")
+		engine = "models/conceptnet.bin";
+	else if (engine == "conceptnet-swe")
+		engine = "models/conceptnet-swedish.bin";
+	else
+		cerr << "Invalid engine parameter.";
+
+	Word2VecSimilarityEngine word2vecEngine;
+	if (!word2vecEngine.load(engine, false))
+		cerr << "Unable to load similarity engine.";
+
+	InappropriateEngine inappropriateEngine;
+	inappropriateEngine.load("inappropriate.txt");
+
+	auto words = word2vecEngine.getCommonWords(10000);
+
+	string COLOR_RED = "\033[31m";
+    string COLOR_GREEN = "\033[32m";
+    string COLOR_BLUE = "\033[34m";
+    string RESET = "\033[0m";
+
+	while(true) {
+		vector<wordID> randWords;
+		Bot bot(word2vecEngine, inappropriateEngine);
+		for (int i = 0; i < 25; i++) {
+			randWords.push_back(words[rand() % words.size()]);
+			//cout << word2vecEngine.getWord(*randWords.rbegin()) << endl;
+		}
+
+		for (wordID word : randWords) {
+			bot.addBoardWord(Bot::CardType::MINE, word2vecEngine.getWord(word));
+		}
+		
+		bot.setDifficulty(Bot::Difficulty::MEDIUM);
+		Bot::Result result = bot.findBestWords(1)[0];
+		vector<pair<float,string>> valuations;
+		for(auto valuationItem : result.valuations) {
+			valuations.push_back(make_pair(valuationItem.score, valuationItem.word));
+		}
+		sort(valuations.rbegin(), valuations.rend());
+		vector<string> subset;
+		int numBest = 1 + (rand() % 5);
+		for (int i = 0; i < numBest; i++) {
+			subset.push_back(valuations[0].second);
+			valuations.erase(valuations.begin());
+		}
+
+		while(subset.size() < 5) {
+			int index = rand() % valuations.size();
+			subset.push_back(valuations[index].second);
+			valuations.erase(valuations.begin() + index);
+		}
+		
+		cout << COLOR_GREEN << result.word << RESET << endl;
+		random_shuffle(subset.begin(), subset.end());
+		for (int i = 0; i < subset.size(); i++) {
+			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i] << endl;
+		}
+
+		bool worked = true;
+		while(worked) {
+			worked = true;
+
+			cout << "Enter order as e.g '2 4'. Items which are not included are assumed to be very unrelated to the query." << endl;
+			string line;
+			getline(cin, line);
+
+			if (line == "exit" || line == "quit" || line == ":q" || line == ":x") {
+				output.close();
+				exit(0);
+			}
+
+			if (line == "") {
+				cout << COLOR_RED << "Are you sure that no words are related to the query? [yes/no]" << RESET << endl;
+				string answer;
+				cin >> answer;
+				if (answer != "yes") {
+					continue;
+				}
+			}
+
+			stringstream ss(line);
+			int itemIndex;
+			vector<string> picked;
+			while(ss >> itemIndex) {
+				if (itemIndex < 1 || itemIndex > subset.size()) {
+					cout << COLOR_RED << "Index out of range" << RESET << endl;
+					worked = false;
+					break;
+				}
+
+				if (find(picked.begin(), picked.end(), subset[itemIndex-1]) != picked.end()) {
+					cout << COLOR_RED << "Duplicate index" << RESET << endl;
+					worked = false;
+					break;
+				}
+
+				picked.push_back(subset[itemIndex-1]);
+			}
+
+			if (worked) {
+				output << result.word << "\t:\t";
+				for(auto w : picked) output << w << "\t";
+				output << "\t:\t";
+				for(auto w : subset) {
+					if(find(picked.begin(), picked.end(), w) == picked.end()) {
+						output << w << "\t";
+					}
+				}
+				
+				output << "\n";
+				output.flush();
+				break;
+			}
+		}
+	}
+}
+
 int main(int argc, char **argv) {
+	if (argc == 2 && argv[1] == string("--server")) {
+		serverMain();
+		return 0;
+	}
+
 	if (argc == 2 && argv[1] == string("--batch")) {
 		batchMain();
 		return 0;
