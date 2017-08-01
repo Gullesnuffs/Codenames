@@ -1,0 +1,4 @@
+belt	:	pants	ring	glove	dress		:	crane	
+enterprise	:	capital	contract	server	giant		:	ness	
+return	:	back	trip	change	king		:	slug	
+recognize	:	face	note	watch	change		:	bear	

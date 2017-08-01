@@ -1,0 +1,5 @@
+push	:	press	button	force	tap		:	shakespeare	
+impact	:	crash	force	board	beijing		:	rabbit	
+leg	:	foot	shoe	trip	face	bed		:	
+acceptance	:	seal	contract		:	note	grace	card	
+friendly	:	fair	bar	well		:	ketchup	skyscraper	

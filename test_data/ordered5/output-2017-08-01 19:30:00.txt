@@ -1,0 +1,6 @@
+washing	:	washer	sink	brush	water		:	bed	
+lie	:	bed	plot	sink		:	africa	flute	
+rock	:	band	cliff	track	sound	beach		:	
+dreams	:	night	bed	moon	kid	life		:	
+video	:	film	screen	link	satellite	microscope		:	
+tickets	:	concert	theater	charge	stadium	school		:	
