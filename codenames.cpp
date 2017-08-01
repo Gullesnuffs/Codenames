@@ -1256,6 +1256,101 @@ void simMain2 () {
 	}
 }
 
+int sign(int v) {
+	return v > 0 ? 1 : (v < 0 ? -1 : 0);
+}
+
+/** -1 if the indices are in reverse order, +1 if they are in increasing order, otherwise somewhere in between. */
+float kendallRankCoefficient(vector<int> indices) {
+	float numerator = 0;
+	int differingPairs = 0;
+	for (int i = 0; i < indices.size(); i++) {
+		for (int j = 0; j < i; j++) {
+			int v = sign(indices[i] - indices[j]);
+			if (v != 0) {
+				numerator += v;
+				differingPairs++;
+			}
+		}
+	}
+	return differingPairs > 0 ? numerator / differingPairs : 0.0f;
+}
+
+void benchSimilarity () {
+	string engine = "conceptnet";
+	if (engine == "glove")
+		engine = "models/glove.840B.330d.bin";
+	else if (engine == "conceptnet")
+		engine = "models/conceptnet.bin";
+	else if (engine == "conceptnet-swe")
+		engine = "models/conceptnet-swedish.bin";
+	else
+		cerr << "Invalid engine parameter.";
+
+	Word2VecSimilarityEngine word2vecEngine;
+	if (!word2vecEngine.load(engine, false))
+		cerr << "Unable to load similarity engine.";
+
+
+	float sumScore = 0;
+	float weight = 0;
+
+	string line;
+	while(getline(cin, line)) {
+		stringstream ss(line);
+
+		string query;
+		ss >> query;
+		if (!word2vecEngine.wordExists(query)) continue;
+
+		string s;
+		ss >> s;
+		assert(s == ":");
+		bool skipped = false;
+		vector<string> picked;
+		vector<pair<float,int>> all;
+		vector<string> words;
+		int nextIndex = 0;
+		while(ss >> s) {
+			if (s == ":") {
+				skipped = true;
+			} else if (word2vecEngine.wordExists(s)) {
+				float sim = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(s));
+				all.push_back(make_pair(sim, nextIndex));
+				words.push_back(s);
+				if (!skipped) {
+					nextIndex++;
+				}
+			}
+		}
+		sort(all.rbegin(), all.rend());
+		vector<int> allIndex;
+		for (auto pair : all) {
+			allIndex.push_back(pair.second);
+		}
+
+		float score = kendallRankCoefficient(allIndex);
+
+		sumScore += score;
+		weight += 1;
+
+#if DEBUG_SCORES
+		cout << score << endl;
+		if (score > 0.5f) {
+			cout << query << endl;
+			for(auto w : words) {
+				float sim = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(w));
+				cout << " " << w << " " << sim << endl;
+			}
+			cout << line << endl;
+		}
+#endif
+	}
+
+	float totalScore = sumScore / weight;
+	cout << totalScore << endl;
+}
+
 void serverMain() {
 	cin.exceptions(ios::failbit | ios::eofbit | ios::badbit);
 	srand(time(0));
@@ -1410,6 +1505,11 @@ int main(int argc, char **argv) {
 
 	if (argc == 2 && argv[1] == string("--batch")) {
 		batchMain();
+		return 0;
+	}
+
+	if (argc == 2 && argv[1] == string("--bench-similarity")) {
+		benchSimilarity();
 		return 0;
 	}
 
