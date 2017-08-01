@@ -1264,16 +1264,22 @@ void serverMain() {
     auto tm = *localtime(&t);
 	fileName << "testing/output-" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ".txt";
 	ofstream output(fileName.str());
+	if(!output) {
+		cerr << "Failed to open output file '" << fileName.str() << "'" << endl;
+		return;
+	}
 
 	string engine = "conceptnet";
-	if (engine == "glove")
+	if (engine == "glove") {
 		engine = "models/glove.840B.330d.bin";
-	else if (engine == "conceptnet")
+	} else if (engine == "conceptnet") {
 		engine = "models/conceptnet.bin";
-	else if (engine == "conceptnet-swe")
+	} else if (engine == "conceptnet-swe") {
 		engine = "models/conceptnet-swedish.bin";
-	else
+	} else {
 		cerr << "Invalid engine parameter.";
+		return;
+	}
 
 	Word2VecSimilarityEngine word2vecEngine;
 	if (!word2vecEngine.load(engine, false))
@@ -1327,7 +1333,7 @@ void serverMain() {
 
 			subset.push_back(bestWord);
 		}
-		
+
 		cout << COLOR_GREEN << query << RESET << endl;
 		random_shuffle(subset.begin(), subset.end());
 		for (int i = 0; i < subset.size(); i++) {
@@ -1387,7 +1393,7 @@ void serverMain() {
 						output << w << "\t";
 					}
 				}
-				
+
 				output << "\n";
 				output.flush();
 				break;
@@ -1397,9 +1403,6 @@ void serverMain() {
 }
 
 int main(int argc, char **argv) {
-	simMain2();
-	return 0;
-
 	if (argc == 2 && argv[1] == string("--server")) {
 		serverMain();
 		return 0;
