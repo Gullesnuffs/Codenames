@@ -57,6 +57,13 @@ string denormalize(string s) {
 	return s;
 }
 
+/** True if a is a super or substring of b or vice versa */
+bool superOrSubstring(const string &a, const string &b) {
+	auto lowerA = normalize(a);
+	auto lowerB = normalize(b);
+	return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
+}
+
 float sigmoid(float x) {
 	return 1.0f / (1.0f + exp(-x));
 }
@@ -447,13 +454,6 @@ struct Bot {
 	vector<BoardWord> boardWords;
 	void addBoardWord(CardType type, const string &word) {
 		boardWords.push_back({type, word, engine.getID(word)});
-	}
-
-	/** True if a is a super or substring of b or vice versa */
-	bool superOrSubstring(const string &a, const string &b) {
-		auto lowerA = normalize(a);
-		auto lowerB = normalize(b);
-		return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
 	}
 
 	bool forbiddenWord(const string &word) {
@@ -1170,6 +1170,92 @@ void batchMain() {
 	}
 }
 
+void simMain () {
+	string engine = "conceptnet";
+	if (engine == "glove")
+		engine = "models/glove.840B.330d.bin";
+	else if (engine == "conceptnet")
+		engine = "models/conceptnet.bin";
+	else if (engine == "conceptnet-swe")
+		engine = "models/conceptnet-swedish.bin";
+	else
+		cerr << "Invalid engine parameter.";
+
+	Word2VecSimilarityEngine word2vecEngine;
+	if (!word2vecEngine.load(engine, false))
+		cerr << "Unable to load similarity engine.";
+
+
+	string line;
+	while(getline(cin, line)) {
+		stringstream ss(line);
+
+		string query;
+		ss >> query;
+
+		string s;
+		ss >> s;
+		assert(s == ":");
+		bool skipped = false;
+		while(ss >> s) {
+			if (s == ":") {
+				skipped = true;
+			} else {
+				cout << query << " " << s << " " << word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(s)) << " " << (skipped ? 0 : 1) << endl;
+			}
+		}
+	}
+}
+
+void simMain2 () {
+	string engine = "conceptnet";
+	if (engine == "glove")
+		engine = "models/glove.840B.330d.bin";
+	else if (engine == "conceptnet")
+		engine = "models/conceptnet.bin";
+	else if (engine == "conceptnet-swe")
+		engine = "models/conceptnet-swedish.bin";
+	else
+		cerr << "Invalid engine parameter.";
+
+	Word2VecSimilarityEngine word2vecEngine;
+	if (!word2vecEngine.load(engine, false))
+		cerr << "Unable to load similarity engine.";
+
+
+	string line;
+	while(getline(cin, line)) {
+		stringstream ss(line);
+
+		string query;
+		ss >> query;
+
+		string s;
+		ss >> s;
+		assert(s == ":");
+		bool skipped = false;
+		vector<string> picked;
+		vector<string> all;
+		while(ss >> s) {
+			if (s == ":") {
+				skipped = true;
+			} else {
+				if (!skipped) picked.push_back(s);
+				all.push_back(s);
+			}
+		}
+
+		for (int i = 0; i < picked.size(); i++) {
+			for (int j = i + 1; j < all.size(); j++) {
+				float s1 = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(picked[i]));
+				float s2 = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(all[j]));
+				cout << min(s1, s2) << " " << max(s1, s2) << " " << (s1 < s2 ? 1 : 0) << endl;
+				cout << max(s1, s2) << " " << min(s1, s2) << " " << (s1 < s2 ? 0 : 1) << endl;
+			}
+		}
+	}
+}
+
 void serverMain() {
 	cin.exceptions(ios::failbit | ios::eofbit | ios::badbit);
 	srand(time(0));
@@ -1196,49 +1282,56 @@ void serverMain() {
 	InappropriateEngine inappropriateEngine;
 	inappropriateEngine.load("inappropriate.txt");
 
-	auto words = word2vecEngine.getCommonWords(10000);
+	auto words = word2vecEngine.getCommonWords(5000);
 
 	string COLOR_RED = "\033[31m";
     string COLOR_GREEN = "\033[32m";
     string COLOR_BLUE = "\033[34m";
     string RESET = "\033[0m";
 
+    cout << "Starting" << endl;
+    auto wordListFile = ifstream("/Users/arong/Programming/learning/codenames-server/recognizer/wordlist-eng.txt");
+    vector<string> wordList;
+    string wordListWord;
+    while(wordListFile >> wordListWord) {
+    	string normalized = normalize(wordListWord);
+    	if (word2vecEngine.wordExists(normalized)) {
+    		wordList.push_back(normalized);
+    	}
+    }
+    cout << "Loaded Code Names word list with " << wordList.size() << " words" << endl;
+
 	while(true) {
-		vector<wordID> randWords;
-		Bot bot(word2vecEngine, inappropriateEngine);
-		for (int i = 0; i < 25; i++) {
-			randWords.push_back(words[rand() % words.size()]);
-			//cout << word2vecEngine.getWord(*randWords.rbegin()) << endl;
-		}
-
-		for (wordID word : randWords) {
-			bot.addBoardWord(Bot::CardType::MINE, word2vecEngine.getWord(word));
-		}
-		
-		bot.setDifficulty(Bot::Difficulty::MEDIUM);
-		Bot::Result result = bot.findBestWords(1)[0];
-		vector<pair<float,string>> valuations;
-		for(auto valuationItem : result.valuations) {
-			valuations.push_back(make_pair(valuationItem.score, valuationItem.word));
-		}
-		sort(valuations.rbegin(), valuations.rend());
+		string query = word2vecEngine.getWord(words[rand() % words.size()]);
 		vector<string> subset;
-		int numBest = 1 + (rand() % 5);
-		for (int i = 0; i < numBest; i++) {
-			subset.push_back(valuations[0].second);
-			valuations.erase(valuations.begin());
-		}
+		for (int i = 0; i < 5; i++) {
+			// Range from -0.2 to 1.2
+			float targetSimilarity = rand() / (float)RAND_MAX;
+			targetSimilarity = -0.2f + targetSimilarity*1.4;
 
-		while(subset.size() < 5) {
-			int index = rand() % valuations.size();
-			subset.push_back(valuations[index].second);
-			valuations.erase(valuations.begin() + index);
+			float bestSimilarity = -10;
+			string bestWord = "";
+			for(auto w: wordList) {
+				float similarity = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(w));
+				float d1 = abs(similarity - targetSimilarity);
+				float d2 = abs(bestSimilarity - targetSimilarity);
+				if (d1 < d2 && fmod(rand(), d1 + d2) < d2) {
+					if (!superOrSubstring(w, query) && find(subset.begin(), subset.end(), w) == subset.end()) {
+						bestSimilarity = similarity;
+						bestWord = w;
+					}
+				}
+			}
+
+			subset.push_back(bestWord);
 		}
 		
-		cout << COLOR_GREEN << result.word << RESET << endl;
+		cout << COLOR_GREEN << query << RESET << endl;
 		random_shuffle(subset.begin(), subset.end());
 		for (int i = 0; i < subset.size(); i++) {
-			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i] << endl;
+			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i];
+			//cout << " " << word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(subset[i]));
+			cout << endl;
 		}
 
 		bool worked = false;
@@ -1284,7 +1377,7 @@ void serverMain() {
 			}
 
 			if (worked) {
-				output << result.word << "\t:\t";
+				output << query << "\t:\t";
 				for(auto w : picked) output << w << "\t";
 				output << "\t:\t";
 				for(auto w : subset) {
@@ -1302,6 +1395,9 @@ void serverMain() {
 }
 
 int main(int argc, char **argv) {
+	simMain2();
+	return 0;
+
 	if (argc == 2 && argv[1] == string("--server")) {
 		serverMain();
 		return 0;
