@@ -1393,7 +1393,7 @@ void serverMain() {
     string RESET = "\033[0m";
 
     cout << "Starting" << endl;
-    auto wordListFile = ifstream("/Users/arong/Programming/learning/codenames-server/recognizer/wordlist-eng.txt");
+    auto wordListFile = ifstream("wordlist-eng.txt");
     vector<string> wordList;
     string wordListWord;
     while(wordListFile >> wordListWord) {
