@@ -1283,6 +1283,8 @@ void serverMain() {
 	inappropriateEngine.load("inappropriate.txt");
 
 	auto words = word2vecEngine.getCommonWords(5000);
+	// Remove the most common words
+	words.erase(words.begin(), words.begin()+100);
 
 	string COLOR_RED = "\033[31m";
     string COLOR_GREEN = "\033[32m";
