@@ -1357,7 +1357,7 @@ void serverMain() {
 	stringstream fileName;
 	auto t = time(nullptr);
     auto tm = *localtime(&t);
-	fileName << "testing/output-" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ".txt";
+	fileName << "test_data/ordered5/output-" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ".txt";
 	ofstream output(fileName.str());
 	if(!output) {
 		cerr << "Failed to open output file '" << fileName.str() << "'" << endl;
