@@ -105,12 +105,16 @@ struct Word2VecSimilarityEngine : SimilarityEngine {
 		return ret;
 	}
 
+   public:
 	/** Arbitrary statistic, in this case the word norm. */
 	float stat(wordID s) {
 		return wordNorms[s];
 	}
 
-   public:
+	vector<float> getVector(wordID s) {
+		return words[s];
+	}
+
 	/** Returns true if successful */
 	bool load(const string &fileName, bool verbose) {
 		int dimension, numberOfWords;
@@ -1276,6 +1280,113 @@ float kendallRankCoefficient(vector<int> indices) {
 	return differingPairs > 0 ? numerator / differingPairs : 0.0f;
 }
 
+struct Feature {
+	double conceptnetSimilarity;
+	double conceptnetNorm;
+	vector<float> conceptnetVector;
+	vector<float> clueConceptnetVector;
+	double gloveSimilarity;
+	double gloveNorm;
+	vector<float> gloveVector;
+	vector<float> clueGloveVector;
+
+	void writeTo(ofstream& fout) {
+		fout << conceptnetSimilarity << " ";
+		fout << conceptnetNorm << " ";
+		fout << gloveSimilarity << " ";
+		fout << gloveNorm << " ";
+		for(auto x : conceptnetVector)
+			fout << x << " ";
+		/*for(auto x : gloveVector)
+			fout << x << " ";*/
+		for(auto x : clueConceptnetVector)
+			fout << x << " ";
+		/*for(auto x : clueGloveVector)
+			fout << x << " ";*/
+	}
+};
+
+void extractFeatures(string trainFileName, string testFileName) {
+
+	srand(15);
+
+	Word2VecSimilarityEngine conceptnetEngine;
+	if (!conceptnetEngine.load("models/conceptnet.bin", false))
+		cerr << "Unable to load similarity engine.";
+	
+	Word2VecSimilarityEngine gloveEngine;
+	if (!gloveEngine.load("models/glove.840B.330d.bin", false))
+		cerr << "Unable to load similarity engine.";
+
+
+	float sumScore = 0;
+	float weight = 0;
+
+	ofstream trainFile;
+	ofstream testFile;
+	trainFile.open(trainFileName);
+	if(testFileName != ""){
+		testFile.open(testFileName);
+	}
+
+	string line;
+	while(getline(cin, line)) {
+		bool trainSet = (rand()%10 < 8); // Use 80% of data for training
+		if(testFileName == "")
+			trainSet = true;
+		stringstream ss(line);
+
+		string query;
+		ss >> query;
+		if (!conceptnetEngine.wordExists(query) || !gloveEngine.wordExists(query)) continue;
+
+		string s;
+		ss >> s;
+		assert(s == ":");
+		bool skipped = false;
+		vector<string> picked;
+		vector<Feature> features;
+		vector<string> words;
+		int nextIndex = 0;
+		while(ss >> s) {
+			if (s == ":") {
+				skipped = true;
+			} else if (conceptnetEngine.wordExists(s) && gloveEngine.wordExists(s)) {
+				Feature f;
+				f.conceptnetSimilarity = conceptnetEngine.similarity(conceptnetEngine.getID(query), conceptnetEngine.getID(s));
+				f.conceptnetNorm = conceptnetEngine.stat(conceptnetEngine.getID(s));
+				f.conceptnetVector = conceptnetEngine.getVector(conceptnetEngine.getID(s));
+				f.clueConceptnetVector = conceptnetEngine.getVector(conceptnetEngine.getID(query));
+				f.gloveSimilarity = gloveEngine.similarity(gloveEngine.getID(query), gloveEngine.getID(s));
+				f.gloveNorm = gloveEngine.stat(gloveEngine.getID(s));
+				f.gloveVector = gloveEngine.getVector(gloveEngine.getID(s));
+				f.clueGloveVector = gloveEngine.getVector(gloveEngine.getID(query));
+				for (int i = 0; i < (int)words.size(); i++){
+					if(trainSet){
+						features[i].writeTo(trainFile);
+						f.writeTo(trainFile);
+						trainFile << endl;
+					}
+					else{
+						features[i].writeTo(testFile);
+						f.writeTo(testFile);
+						testFile << endl;
+					}
+				}
+				if (!skipped) {
+					features.push_back(f);
+					words.push_back(s);
+				}
+			}
+		}
+	}
+
+	trainFile.close();
+	if(testFileName != ""){
+		testFile.close();
+	}
+}
+
 void benchSimilarity () {
 	string engine = "conceptnet";
 	if (engine == "glove")
@@ -1510,6 +1621,13 @@ int main(int argc, char **argv) {
 
 	if (argc == 2 && argv[1] == string("--bench-similarity")) {
 		benchSimilarity();
+		return 0;
+	}
+
+	if (argc >= 3 && argv[1] == string("--extract-features")) {
+		string trainingFile = argv[2];
+		string testFile = argc >= 4 ? argv[3] : "";
+		extractFeatures(trainingFile, testFile);
 		return 0;
 	}
 
