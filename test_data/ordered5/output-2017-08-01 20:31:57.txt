@@ -1,0 +1,3 @@
+states	:	america	canada	china	europe	moscow		:	
+task	:	force	time	charge	bridge	ghost		:	
+relief	:	face	back	strike		:	comic	pitch	
