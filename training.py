@@ -2,9 +2,14 @@ from keras.layers import Input, Dense, Lambda, Add, Activation, Multiply, Concat
 from keras.models import Model
 from keras import regularizers
 import numpy as np
+import sys
+
+if len(sys.argv) < 3 or len(sys.argv) > 4:
+  print("Usage: python3 training.py train-file test-file [result-file]")
+  sys.exit()
 
 # Parse samples
-trainSamples = np.loadtxt("train.txt", ndmin=2)
+trainSamples = np.loadtxt(sys.argv[1], ndmin=2)
 # Dimension of features of one word (there are two words in each sample)
 dim = trainSamples.shape[1]//2
 # Dimension of meta-features of each word
@@ -12,7 +17,7 @@ metaDim = 4
 # Dimension of word2vec-vector of each word
 wordVecDim = (dim-metaDim)//2
 trainOutput = np.ones(trainSamples.shape[0])
-testSamples = np.loadtxt("test.txt", ndmin=2)
+testSamples = np.loadtxt(sys.argv[2], ndmin=2)
 testOutput = np.ones(testSamples.shape[0])
 trainSamples1 = trainSamples[:, 0:dim]
 trainSamplesMeta1 = trainSamples1[:, 0:metaDim]
@@ -97,6 +102,12 @@ model.fit([trainSamplesMeta1, trainSamplesMeta2, trainSamplesVec1, trainSamplesV
 score = model.evaluate([testSamplesMeta1, testSamplesMeta2, testSamplesVec1, testSamplesVec2, testSamplesClue, testConceptnet1, testConceptnet2], testOutput)
 print("\nCross entropy: " + str(score[0]))
 print("Accuracy: " + str(score[1]))
+
+if len(sys.argv) >= 4:
+  f = open(sys.argv[3], 'w')
+  f.write(str(score[0]))
+  f.close()
+  sys.exit()
 
 # Read samples from stdin to test the model
 while(True):

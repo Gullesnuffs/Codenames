@@ -1308,8 +1308,6 @@ struct Feature {
 
 void extractFeatures(string trainFileName, string testFileName) {
 
-	srand(15);
-
 	Word2VecSimilarityEngine conceptnetEngine;
 	if (!conceptnetEngine.load("models/conceptnet.bin", false))
 		cerr << "Unable to load similarity engine.";
@@ -1627,6 +1625,9 @@ int main(int argc, char **argv) {
 	if (argc >= 3 && argv[1] == string("--extract-features")) {
 		string trainingFile = argv[2];
 		string testFile = argc >= 4 ? argv[3] : "";
+		if(argc >= 5){
+			srand(atoi(argv[4]));
+		}
 		extractFeatures(trainingFile, testFile);
 		return 0;
 	}
