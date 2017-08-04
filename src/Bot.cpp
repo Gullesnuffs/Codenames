@@ -3,6 +3,7 @@
 #include <queue>
 #include <map>
 #include <iostream>
+#include <algorithm>
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define trav(x, v) for (auto &x : v)
@@ -244,7 +245,7 @@ pair<float, vector<wordID>> Bot::getWordScore(wordID word, vector<ValuationItem>
 	// will guess
 	vector<wordID> targetWords;
 	rep(i, 0, v.size()) {
-		if (targetWords.size() >= bestCount)
+		if ((int)targetWords.size() >= bestCount)
 			break;
 		CardType type = v[i].second->type;
 		if (type == CardType::MINE) {

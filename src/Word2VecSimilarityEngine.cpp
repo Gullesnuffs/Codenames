@@ -1,5 +1,6 @@
 #include "Word2VecSimilarityEngine.h"
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <cmath>

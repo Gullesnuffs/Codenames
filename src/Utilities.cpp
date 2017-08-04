@@ -8,7 +8,7 @@ float sigmoid(float x) {
 }
 
 void eraseFromVector(string word, vector<string> &v) {
-	for (int i = 0; i < v.size(); i++) {
+	for (int i = 0; i < (int)v.size(); i++) {
 		if (v[i] == word) {
 			v.erase(v.begin() + i);
 			i--;

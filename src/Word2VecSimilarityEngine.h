@@ -9,7 +9,7 @@
 
 #include "Utilities.h"
 
-struct Word2VecSimilarityEngine : SimilarityEngine {
+struct Word2VecSimilarityEngine final : SimilarityEngine {
    private:
 	int formatVersion, modelid;
 	std::map<std::string, wordID> word2id;

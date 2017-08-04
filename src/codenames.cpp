@@ -290,8 +290,8 @@ void simMain2 () {
 			}
 		}
 
-		for (int i = 0; i < picked.size(); i++) {
-			for (int j = i + 1; j < all.size(); j++) {
+		for (int i = 0; i < (int)picked.size(); i++) {
+			for (int j = i + 1; j < (int)all.size(); j++) {
 				float s1 = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(picked[i]));
 				float s2 = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(all[j]));
 				cout << min(s1, s2) << " " << max(s1, s2) << " " << (s1 < s2 ? 1 : 0) << endl;
@@ -309,7 +309,7 @@ int sign(int v) {
 float kendallRankCoefficient(vector<int> indices) {
 	float numerator = 0;
 	int differingPairs = 0;
-	for (int i = 0; i < indices.size(); i++) {
+	for (int i = 0; i < (int)indices.size(); i++) {
 		for (int j = 0; j < i; j++) {
 			int v = sign(indices[i] - indices[j]);
 			if (v != 0) {
@@ -358,9 +358,6 @@ void extractFeatures(string trainFileName, string testFileName) {
 		cerr << "Unable to load similarity engine.";
 
 
-	float sumScore = 0;
-	float weight = 0;
-
 	ofstream trainFile;
 	ofstream testFile;
 	trainFile.open(trainFileName);
@@ -386,7 +383,6 @@ void extractFeatures(string trainFileName, string testFileName) {
 		vector<string> picked;
 		vector<Feature> features;
 		vector<string> words;
-		int nextIndex = 0;
 		while(ss >> s) {
 			if (s == ":") {
 				skipped = true;
@@ -440,7 +436,6 @@ void benchSimilarity () {
 	Word2VecSimilarityEngine word2vecEngine;
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
-
 
 	float sumScore = 0;
 	float weight = 0;
@@ -581,7 +576,7 @@ void serverMain() {
 
 		cout << COLOR_GREEN << query << RESET << endl;
 		random_shuffle(subset.begin(), subset.end());
-		for (int i = 0; i < subset.size(); i++) {
+		for (int i = 0; i < (int)subset.size(); i++) {
 			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i];
 			//cout << " " << word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(subset[i]));
 			cout << endl;
@@ -614,7 +609,7 @@ void serverMain() {
 			int itemIndex;
 			vector<string> picked;
 			while(ss >> itemIndex) {
-				if (itemIndex < 1 || itemIndex > subset.size()) {
+				if (itemIndex < 1 || itemIndex > (int)subset.size()) {
 					cout << COLOR_RED << "Index out of range" << RESET << endl;
 					worked = false;
 					break;
