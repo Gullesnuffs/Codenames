@@ -1,20 +1,20 @@
 #include "Dictionary.h"
 #include "SimilarityEngine.h"
-#include "Word2VecSimilarityEngine.h"
 #include "Utilities.h"
+#include "Word2VecSimilarityEngine.h"
 
-#include <vector>
-#include <string>
-#include <iostream>
+#include <algorithm>
 #include <cassert>
-#include <iomanip>
-#include <set>
-#include <map>
 #include <cmath>
 #include <fstream>
-#include <algorithm>
+#include <iomanip>
+#include <iostream>
+#include <map>
 #include <queue>
+#include <set>
 #include <sstream>
+#include <string>
+#include <vector>
 using namespace std;
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
@@ -40,7 +40,8 @@ double parse(string w) {
 	return res;
 }
 
-bool eval(Word2VecSimilarityEngine &engine, Dictionary &dict, const string &line, vector<float> *out) {
+bool eval(Word2VecSimilarityEngine &engine, Dictionary &dict, const string &line,
+		  vector<float> *out) {
 	size_t i = 0;
 	vector<pair<double, string>> stuff;
 	char lastSign = '+';
@@ -59,18 +60,20 @@ bool eval(Word2VecSimilarityEngine &engine, Dictionary &dict, const string &line
 			return false;
 		}
 		double val = parse(dec);
-		if (lastSign == '-') val = -val;
+		if (lastSign == '-')
+			val = -val;
 		stuff.push_back({val, w});
-		if (j == string::npos) break;
+		if (j == string::npos)
+			break;
 		lastSign = line[j];
-		i = j+1;
+		i = j + 1;
 	}
 
 	int dim = engine.dimension();
 	vector<float> vec(dim);
 	trav(pa, stuff) {
 		vector<float> vec2 = engine.getVector(dict.getID(pa.second));
-		rep(i,0,dim) {
+		rep(i, 0, dim) {
 			vec[i] += pa.first * vec2[i];
 		}
 	}
@@ -79,39 +82,43 @@ bool eval(Word2VecSimilarityEngine &engine, Dictionary &dict, const string &line
 }
 
 struct Color {
-    double r,g,b;
+	double r, g, b;
 };
 
-// From https://stackoverflow.com/questions/7706339/grayscale-to-red-green-blue-matlab-jet-color-scale
-Color getColor(double v,double vmin,double vmax) {
-   Color c = {1.0,1.0,1.0};
+// From
+// https://stackoverflow.com/questions/7706339/grayscale-to-red-green-blue-matlab-jet-color-scale
+Color getColor(double v, double vmin, double vmax) {
+	Color c = {1.0, 1.0, 1.0};
 
-   if (v < vmin)
-      v = vmin;
-   if (v > vmax)
-      v = vmax;
-   double dv = vmax - vmin;
+	if (v < vmin)
+		v = vmin;
+	if (v > vmax)
+		v = vmax;
+	double dv = vmax - vmin;
 
-   if (v < (vmin + 0.25 * dv)) {
-      c.r = 0;
-      c.g = 4 * (v - vmin) / dv;
-   } else if (v < (vmin + 0.5 * dv)) {
-      c.r = 0;
-      c.b = 1 + 4 * (vmin + 0.25 * dv - v) / dv;
-   } else if (v < (vmin + 0.75 * dv)) {
-      c.r = 4 * (v - vmin - 0.5 * dv) / dv;
-      c.b = 0;
-   } else {
-      c.g = 1 + 4 * (vmin + 0.75 * dv - v) / dv;
-      c.b = 0;
-   }
+	if (v < (vmin + 0.25 * dv)) {
+		c.r = 0;
+		c.g = 4 * (v - vmin) / dv;
+	} else if (v < (vmin + 0.5 * dv)) {
+		c.r = 0;
+		c.b = 1 + 4 * (vmin + 0.25 * dv - v) / dv;
+	} else if (v < (vmin + 0.75 * dv)) {
+		c.r = 4 * (v - vmin - 0.5 * dv) / dv;
+		c.b = 0;
+	} else {
+		c.g = 1 + 4 * (vmin + 0.75 * dv - v) / dv;
+		c.b = 0;
+	}
 
-   return c;
+	return c;
 }
 
-int ci(double x) { return (int)round(x*255); }
+int ci(double x) {
+	return (int)round(x * 255);
+}
 void printWithColor(string c, Color col) {
-	cout << "\x1b[38;2;" << ci(col.r) << ';' << ci(col.g) << ';' << ci(col.b) << 'm' << c << "\x1b[0m";
+	cout << "\x1b[38;2;" << ci(col.r) << ';' << ci(col.g) << ';' << ci(col.b) << 'm' << c
+		 << "\x1b[0m";
 }
 
 int main() {
@@ -123,21 +130,25 @@ int main() {
 		string line;
 		cout << "> ";
 		getline(cin, line);
-		if (!cin) break;
-		if (line.empty()) continue;
+		if (!cin)
+			break;
+		if (line.empty())
+			continue;
 		vector<float> vec;
 		size_t i = line.find('*');
 		if (i == string::npos) {
-			if (!eval(engine, dict, line, &vec)) continue;
+			if (!eval(engine, dict, line, &vec))
+				continue;
 
 			float max = 0, min = 0;
-			rep(i,0,dim) {
+			rep(i, 0, dim) {
 				max = std::max(max, vec[i]);
 				min = std::min(min, vec[i]);
 			}
 			max = std::max(max, -min);
-			if (max == 0) max = 1;
-			rep(i,0,dim) {
+			if (max == 0)
+				max = 1;
+			rep(i, 0, dim) {
 				float v = vec[i] / max;
 				Color c = (v < 0 ? Color{-v, 0, 0} : Color{0, v, 0});
 				// c = getColor(v,-1,1);
@@ -157,12 +168,14 @@ int main() {
 			cout << endl;
 			// cout << " (" << v.front().first << " ... " << v.back().first << ")" << endl;
 		} else {
-			string str1 = line.substr(0, i), str2 = line.substr(i+1);
+			string str1 = line.substr(0, i), str2 = line.substr(i + 1);
 			vector<float> vec1, vec2;
-			if (!eval(engine, dict, str1, &vec1)) continue;
-			if (!eval(engine, dict, str2, &vec2)) continue;
+			if (!eval(engine, dict, str1, &vec1))
+				continue;
+			if (!eval(engine, dict, str2, &vec2))
+				continue;
 			float sum = 0;
-			rep(i,0,dim) sum += vec1[i] * vec2[i];
+			rep(i, 0, dim) sum += vec1[i] * vec2[i];
 			cout << "Similarity: " << sum << endl;
 		}
 	}

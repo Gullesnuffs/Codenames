@@ -28,10 +28,10 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	float similarity(const std::vector<float> &v1, const std::vector<float> &v2);
 
    public:
-   	inline int dimension() {
-   		// TODO: Use field instead?
-   		return words[0].size();
-   	}
+	inline int dimension() {
+		// TODO: Use field instead?
+		return words[0].size();
+	}
 
 	Word2VecSimilarityEngine(Dictionary &dict) : dict(dict) {}
 
@@ -53,5 +53,5 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	bool wordExists(const std::string &word);
 
 	std::vector<std::pair<float, std::string>> similarWords(const std::string &s);
-	std::vector<std::pair<float, std::string>> similarWords(const std::vector<float>& vec);
+	std::vector<std::pair<float, std::string>> similarWords(const std::vector<float> &vec);
 };

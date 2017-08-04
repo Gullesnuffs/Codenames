@@ -122,9 +122,8 @@ vector<pair<float, string>> Word2VecSimilarityEngine::similarWords(const string 
 }
 
 vector<pair<float, string>> Word2VecSimilarityEngine::similarWords(const vector<float> &s) {
-	
 	vector<pair<float, wordID>> ret;
-	for(auto id : index2id) {
+	for (auto id : index2id) {
 		ret.push_back(make_pair(-similarity(s, getVector(id)), id));
 	}
 	sort(all(ret));
