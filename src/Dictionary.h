@@ -20,15 +20,17 @@ struct Dictionary {
 	std::vector<std::string> words;
 
    public:
-	Dictionary() {}
-	Dictionary(const std::string& filePath);
-
 	/** Popularity of a word, the most popular word has a popularity of 1, the second most popular
 	 * has a popularity of 2 etc. */
 	int getPopularity(wordID id) const;
 
 	/** True if the dictionary includes the specified word */
 	bool wordExists(const std::string& word) const;
+
+	/** Adds a word to the dictionary unless it already exists.
+	 * Returns the ID of the word (regardless of whether it was already in the dictionary or not).
+	 */
+	wordID addWord(const std::string& word);
 
 	/** Word string corresponding to the ID */
 	std::string& getWord(wordID id);
@@ -42,10 +44,4 @@ struct Dictionary {
 	inline int size() const {
 		return (int)words.size();
 	}
-
-	/** Load the dictionary from a file.
-	 * The file should be a '\n' separated list of words
-	 * ordered according to their popularity (starting with the most popular word).
-	 */
-	void load(const std::string& filePath);
 };

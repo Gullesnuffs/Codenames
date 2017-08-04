@@ -29,10 +29,6 @@ bool superOrSubstring(const string& a, const string& b) {
 	return lowerA.find(lowerB) != string::npos || lowerB.find(lowerA) != string::npos;
 }
 
-Dictionary::Dictionary(const string& filePath) {
-	load(filePath);
-}
-
 int Dictionary::getPopularity(wordID id) const {
 	// Word IDs are the indices of words in the input file, which is assumed to be ordered
 	// according to popularity
@@ -41,6 +37,14 @@ int Dictionary::getPopularity(wordID id) const {
 
 bool Dictionary::wordExists(const string& word) const {
 	return word2id.count(word) > 0;
+}
+
+wordID Dictionary::addWord(const string& word) {
+	if (!wordExists(word)) {
+		word2id.insert(make_pair(word, (wordID)words.size()));
+		words.push_back(word);
+	}
+	return getID(word);
 }
 
 string& Dictionary::getWord(wordID id) {
@@ -60,15 +64,4 @@ vector<wordID> Dictionary::getCommonWords(int vocabularySize) const {
 		ret.push_back(wordID(i));
 	}
 	return ret;
-}
-
-void Dictionary::load(const string& filePath) {
-	ifstream file(filePath);
-	string line;
-	while (getline(file, line)) {
-		if (line.size() > 0) {
-			word2id.insert(make_pair(line, (wordID)words.size()));
-			words.push_back(line);
-		}
-	}
 }

@@ -71,7 +71,7 @@ void batchMain() {
 		else
 			fail("Invalid engine parameter.");
 
-		Dictionary dict("dictionary.txt");
+		Dictionary dict;
 		Word2VecSimilarityEngine word2vecEngine(dict);
 		if (!word2vecEngine.load(engine, false))
 			fail("Unable to load similarity engine.");
@@ -226,7 +226,7 @@ void simMain() {
 	else
 		cerr << "Invalid engine parameter.";
 
-	Dictionary dict("dictionary.txt");
+	Dictionary dict;
 	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
@@ -265,7 +265,7 @@ void simMain2() {
 	else
 		cerr << "Invalid engine parameter.";
 
-	Dictionary dict("dictionary.txt");
+	Dictionary dict;
 	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
@@ -352,7 +352,7 @@ struct Feature {
 };
 
 void extractFeatures(string trainFileName, string testFileName) {
-	Dictionary dict("dictionary.txt");
+	Dictionary dict;
 	Word2VecSimilarityEngine conceptnetEngine(dict);
 	if (!conceptnetEngine.load("models/conceptnet.bin", false))
 		cerr << "Unable to load similarity engine.";
@@ -437,7 +437,7 @@ void benchSimilarity() {
 	else
 		cerr << "Invalid engine parameter.";
 
-	Dictionary dict("dictionary.txt");
+	Dictionary dict;
 	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
@@ -527,7 +527,7 @@ void serverMain() {
 		return;
 	}
 
-	Dictionary dict("dictionary.txt");
+	Dictionary dict;
 	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
@@ -680,7 +680,7 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	Dictionary dict("dictionary.txt");
+	Dictionary dict;
 	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load("data.bin", true)) {
 		cerr << "Failed to load data.bin" << endl;

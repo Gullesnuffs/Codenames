@@ -55,8 +55,9 @@ bool Word2VecSimilarityEngine::load(const string &fileName, bool verbose) {
 	string word;
 	vector<float> values(dimension);
 	vector<float> valuesd;
-	words.resize(dict.size());
-	wordNorms.resize(dict.size());
+	// Note: Very conservative size, this may waste quite a lot of space if the words are already in the dictionary
+	words.resize(numberOfWords + dict.size());
+	wordNorms.resize(numberOfWords + dict.size());
 	index2id.resize(numberOfWords);
 	rep(i, 0, numberOfWords) {
 		int len;
@@ -82,7 +83,7 @@ bool Word2VecSimilarityEngine::load(const string &fileName, bool verbose) {
 		}
 		word.assign(buf, buf + len);
 		valuesd.assign(all(values));
-		wordID id = dict.getID(word);
+		wordID id = dict.addWord(word);
 		words[id] = move(valuesd);
 		wordNorms[id] = norm;
 		index2id[i] = id;
