@@ -12,4 +12,4 @@ calc: $(H) $(COMMON_CPP) src/calc.cpp
 	g++ -o calc $(FLAGS) $(COMMON_CPP) src/calc.cpp
 
 format:
-	clang-format -style=file -i $(CPP) $(H)
+	clang-format -style=file -i src/*.cpp $(H)
