@@ -474,6 +474,73 @@ struct Bot {
 		CardType type;
 	};
 
+	vector<float> getProbabilities(wordID word) {
+		vector<float> x(boardWords.size());
+		float c = 5;
+		float totX = 0;
+		for (int i = 0; i < (int) boardWords.size(); i++) {
+			x[i] = exp(engine.similarity(boardWords[i].id, word) * c);
+			totX += x[i];
+		}
+		for (int i = 0; i < (int) boardWords.size(); i++) {
+			x[i] /= totX;
+		}
+		return x;
+	}
+
+	float getProbabilityScore(wordID word, int number) {
+		vector<float> score(boardWords.size());
+		for(int i = 0; i < boardWords.size(); i++) {
+			score[i] = engine.similarity(boardWords[i].id, word);
+		}
+		vector<float> scoreWithNoise(boardWords.size());
+		int simulations = 50000;
+		double totScore = 0;
+		vector<bool> remaining(boardWords.size());
+		normal_distribution<double> distribution(0.0, 0.24);
+		default_random_engine generator;
+
+		for (int i = 0; i < simulations; i++) {
+			for (int j = 0; j < boardWords.size(); j++) {
+				remaining[j] = true;
+			}
+			//cerr << "Simulation " << (i+1) << endl;
+			for (int j = 0; j < boardWords.size(); j++) {
+				scoreWithNoise[j] = score[j] + distribution(generator);
+				//cerr << boardWords[j].word << " " << score[j] << " " << scoreWithNoise[j] << endl;
+			}
+			double simulationScore = 0;
+			for (int j = 0; j < number; j++) {
+				int chosen = -1;
+				for (int k = 0; k < boardWords.size(); k++) {
+					if (remaining[k]) {
+						if (chosen == -1 || scoreWithNoise[k] > scoreWithNoise[chosen]) {
+							chosen = k;
+						}
+					}
+				}
+				//cerr << "Chose " << boardWords[chosen].word << endl;
+				remaining[chosen] = false;
+				if (boardWords[chosen].type == CardType::CIVILIAN) {
+					break;
+				}
+				if (boardWords[chosen].type == CardType::OPPONENT) {
+					simulationScore -= 1;
+					break;
+				}
+				if (boardWords[chosen].type == CardType::ASSASSIN) {
+					simulationScore -= 3;
+					break;
+				}
+				if (boardWords[chosen].type == CardType::MINE) {
+					simulationScore += 1;
+				}
+			}
+			totScore += simulationScore;
+		}
+		return totScore / simulations;
+	}
+
 	pair<float, vector<wordID>> getWordScore(wordID word, vector<ValuationItem> *valuation,
 											 bool doInflate) {
 		typedef pair<float, BoardWord *> Pa;
@@ -680,7 +747,7 @@ struct Bot {
 			}
 		}
 
-		bool usePlanning = (myWordsFound && myWordsFound <= 9);
+		bool usePlanning = false;//(myWordsFound && myWordsFound <= 9);
 		vector<int> minMovesNeeded;
 		vector<float> bestScore;
 		vector<float> bestClueScore;
@@ -763,6 +830,7 @@ struct Bot {
 				float score = pa.first.first;
 				int number = -pa.first.second;
 				wordID word = pa.second;
+				cerr << engine.getWord(word) << " " << number << ": " << getProbabilityScore(word, number) << endl;
 				vector<ValuationItem> val;
 				getWordScore(word, &val, false);
 				res.push_back(Result{engine.getWord(word), number, score, val});
