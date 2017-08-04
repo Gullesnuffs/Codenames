@@ -55,7 +55,8 @@ bool Word2VecSimilarityEngine::load(const string &fileName, bool verbose) {
 	string word;
 	vector<float> values(dimension);
 	vector<float> valuesd;
-	// Note: Very conservative size, this may waste quite a lot of space if the words are already in the dictionary
+	// Note: Very conservative size, this may waste quite a lot of space if the words are already in
+	// the dictionary
 	words.resize(numberOfWords + dict.size());
 	wordNorms.resize(numberOfWords + dict.size());
 	index2id.resize(numberOfWords);
