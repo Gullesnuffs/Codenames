@@ -1,9 +1,9 @@
 #include "Bot.h"
-#include <cassert>
-#include <queue>
-#include <map>
-#include <iostream>
 #include <algorithm>
+#include <cassert>
+#include <iostream>
+#include <map>
+#include <queue>
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define trav(x, v) for (auto &x : v)
@@ -104,7 +104,7 @@ void Bot::setDifficulty(Difficulty difficulty) {
 }
 
 void Bot::addBoardWord(CardType type, const string &word) {
-	boardWords.push_back({type, word, engine.getID(word)});
+	boardWords.push_back({type, word, dict.getID(word)});
 }
 
 bool Bot::forbiddenWord(const string &word) {
@@ -116,7 +116,7 @@ bool Bot::forbiddenWord(const string &word) {
 }
 
 pair<float, vector<wordID>> Bot::getWordScore(wordID word, vector<ValuationItem> *valuation,
-										 bool doInflate) {
+											  bool doInflate) {
 	typedef pair<float, BoardWord *> Pa;
 	static vector<Pa> v;
 	int myWordsLeft = 0, opponentWordsLeft = 0;
@@ -253,13 +253,13 @@ pair<float, vector<wordID>> Bot::getWordScore(wordID word, vector<ValuationItem>
 		}
 	}
 
-	int popularity = engine.getPopularity(word);
+	int popularity = dict.getPopularity(word);
 	if (popularity < commonWordLimit)
 		bestScore *= commonWordWeight;
 	else if (popularity > rareWordLimit)
 		bestScore *= rareWordWeight;
 
-	bool isInappropriate = inappropriateEngine.isInappropriate(engine.getWord(word));
+	bool isInappropriate = inappropriateEngine.isInappropriate(word);
 	switch (inappropriateMode) {
 		case BlockInappropriate:
 			if (isInappropriate) {
@@ -279,7 +279,7 @@ pair<float, vector<wordID>> Bot::getWordScore(wordID word, vector<ValuationItem>
 }
 
 void Bot::setWords(const vector<string> &_myWords, const vector<string> &_opponentWords,
-			  const vector<string> &_civilianWords, const vector<string> &_assassinWords) {
+				   const vector<string> &_civilianWords, const vector<string> &_assassinWords) {
 	myWords = _myWords;
 	opponentWords = _opponentWords;
 	civilianWords = _civilianWords;
@@ -296,13 +296,13 @@ void Bot::createBoardWords() {
 }
 
 vector<Bot::Result> Bot::findBestWords(int count) {
-	vector<wordID> candidates = engine.getCommonWords(vocabularySize);
+	vector<wordID> candidates = dict.getCommonWords(vocabularySize);
 	priority_queue<pair<pair<float, int>, wordID>> pq;
 	map<int, int> bitRepresentation;
 	int myWordsFound = 0;
 	rep(i, 0, boardWords.size()) {
 		if (boardWords[i].type == CardType::MINE &&
-			!hasInfoAbout.count(engine.getWord(boardWords[i].id))) {
+			!hasInfoAbout.count(dict.getWord(boardWords[i].id))) {
 			bitRepresentation[boardWords[i].id] = (1 << myWordsFound);
 			++myWordsFound;
 		} else {
@@ -335,8 +335,7 @@ vector<Bot::Result> Bot::findBestWords(int count) {
 				bits |= bitRepresentation[matchedWord];
 			}
 			float newScore = res.first - valueOfOneTurn;
-			if (bits && newScore > bestScore[bits] &&
-				!forbiddenWord(engine.getWord(candidate))) {
+			if (bits && newScore > bestScore[bits] && !forbiddenWord(dict.getWord(candidate))) {
 				minMovesNeeded[bits] = 1;
 				bestScore[bits] = newScore;
 				bestWord[bits] = candidate;
@@ -379,7 +378,7 @@ vector<Bot::Result> Bot::findBestWords(int count) {
 			auto wordScore = getWordScore(word, &val, false);
 			float score = wordScore.first;
 			int number = (int)wordScore.second.size();
-			res.push_back(Bot::Result{engine.getWord(word), number, score, val});
+			res.push_back(Bot::Result{dict.getWord(word), number, score, val});
 		}
 		sort(all(res));
 		return res;
@@ -389,13 +388,13 @@ vector<Bot::Result> Bot::findBestWords(int count) {
 	while ((int)res.size() < count && !pq.empty()) {
 		auto pa = pq.top();
 		pq.pop();
-		if (!forbiddenWord(engine.getWord(pa.second))) {
+		if (!forbiddenWord(dict.getWord(pa.second))) {
 			float score = pa.first.first;
 			int number = -pa.first.second;
 			wordID word = pa.second;
 			vector<ValuationItem> val;
 			getWordScore(word, &val, false);
-			res.push_back(Bot::Result{engine.getWord(word), number, score, val});
+			res.push_back(Bot::Result{dict.getWord(word), number, score, val});
 		}
 	}
 
@@ -408,7 +407,7 @@ void Bot::setHasInfo(string word) {
 
 void Bot::addOldClue(string clue) {
 	if (engine.wordExists(clue)) {
-		auto wordID = engine.getID(clue);
+		auto wordID = dict.getID(clue);
 		oldClues.push_back(wordID);
 	}
 }

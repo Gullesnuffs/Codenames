@@ -1,7 +1,8 @@
 #pragma once
 
-#include<unordered_set>
 #include <string>
+#include <unordered_set>
+#include "Dictionary.h"
 
 enum InappropriateMode {
 	BlockInappropriate,
@@ -10,8 +11,12 @@ enum InappropriateMode {
 };
 
 struct InappropriateEngine {
-	std::unordered_set<std::string> inappropriateWords;
+   private:
+	std::vector<bool> inappropriateWords;
 
-	void load(std::string fileName);
-	bool isInappropriate(std::string word);
+   public:
+	InappropriateEngine(const std::string& filePath, const Dictionary& dict);
+
+	void load(const std::string& filePath, const Dictionary& dict);
+	bool isInappropriate(wordID id) const;
 };

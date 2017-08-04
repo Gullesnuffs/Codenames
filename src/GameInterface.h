@@ -1,17 +1,18 @@
 #pragma once
 
+#include <set>
+#include <string>
+#include <vector>
 #include "Bot.h"
-#include "SimilarityEngine.h"
 #include "Dictionary.h"
 #include "InappropriateEngine.h"
-#include <vector>
-#include <string>
-#include <set>
+#include "SimilarityEngine.h"
 
 class GameInterface {
 	typedef Bot::ValuationItem ValuationItem;
 	typedef Bot::Result Result;
 	typedef Bot::CardType CardType;
+	Dictionary &dict;
 	SimilarityEngine &engine;
 	Bot bot;
 	std::vector<std::string> myWords, opponentWords, civilianWords, assassinWords;
@@ -34,8 +35,9 @@ class GameInterface {
 	std::string inputColor();
 
    public:
-	GameInterface(SimilarityEngine &engine, InappropriateEngine &inappropriateEngine)
-		: engine(engine), bot(engine, inappropriateEngine) {}
+	GameInterface(Dictionary &dict, SimilarityEngine &engine,
+				  InappropriateEngine &inappropriateEngine)
+		: dict(dict), engine(engine), bot(dict, engine, inappropriateEngine) {}
 
 	void run();
 };

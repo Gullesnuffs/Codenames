@@ -1,9 +1,9 @@
 #include "Word2VecSimilarityEngine.h"
 
 #include <algorithm>
-#include <iostream>
-#include <fstream>
 #include <cmath>
+#include <fstream>
+#include <iostream>
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define all(v) (v).begin(), (v).end()
@@ -55,9 +55,9 @@ bool Word2VecSimilarityEngine::load(const string &fileName, bool verbose) {
 	string word;
 	vector<float> values(dimension);
 	vector<float> valuesd;
-	words.resize(numberOfWords);
-	wordsStrings.resize(numberOfWords);
-	wordNorms.resize(numberOfWords);
+	words.resize(dict.size());
+	wordNorms.resize(dict.size());
+	index2id.resize(numberOfWords);
 	rep(i, 0, numberOfWords) {
 		int len;
 		fin.read((char *)&len, sizeof len);
@@ -82,12 +82,12 @@ bool Word2VecSimilarityEngine::load(const string &fileName, bool verbose) {
 		}
 		word.assign(buf, buf + len);
 		valuesd.assign(all(values));
-		words[i] = move(valuesd);
-		wordsStrings[i] = word;
-		word2id[word] = wordID(i);
-		wordNorms[i] = norm;
+		wordID id = dict.getID(word);
+		words[id] = move(valuesd);
+		wordNorms[id] = norm;
+		index2id[i] = id;
 		if (modelid == Models::GLOVE) {
-			wordNorms[i] = min(pow(wordNorms[i], 0.4f), 5.3f);
+			wordNorms[id] = min(pow(wordNorms[id], 0.4f), 5.3f);
 		}
 	}
 	if (verbose) {
@@ -96,15 +96,8 @@ bool Word2VecSimilarityEngine::load(const string &fileName, bool verbose) {
 	return true;
 }
 
-/** Top N most popular words */
-vector<wordID> Word2VecSimilarityEngine::getCommonWords(int vocabularySize) {
-	vector<wordID> ret;
-	vocabularySize = min(vocabularySize, (int)words.size());
-	ret.reserve(vocabularySize);
-	for (int i = 0; i < vocabularySize; i++) {
-		ret.push_back(wordID(i));
-	}
-	return ret;
+bool Word2VecSimilarityEngine::wordExists(const string &word) {
+	return dict.wordExists(word) && words[dict.getID(word)].size() > 0;
 }
 
 float Word2VecSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
@@ -118,42 +111,19 @@ float Word2VecSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
 	}
 }
 
-/** ID representing a particular word */
-wordID Word2VecSimilarityEngine::getID(const string &s) {
-	return word2id.at(s);
-}
-
-/** Popularity of a word, the most popular word has a popularity of 1, the second most popular
- * has a popularity of 2 etc. */
-int Word2VecSimilarityEngine::getPopularity(wordID id) {
-	// Word IDs are the indices of words in the input file, which is assumed to be ordered
-	// according to popularity
-	return id + 1;
-}
-
-/** Word string corresponding to the ID */
-const string& Word2VecSimilarityEngine::getWord(wordID id) {
-	return wordsStrings[id];
-}
-
-/** True if the word2vec model includes a vector for the specified word */
-bool Word2VecSimilarityEngine::wordExists(const string &word) {
-	return word2id.count(word) > 0;
-}
-
 vector<pair<float, string>> Word2VecSimilarityEngine::similarWords(const string &s) {
 	if (!wordExists(s)) {
 		cout << denormalize(s) << " does not occur in the corpus" << endl;
 		return vector<pair<float, string>>();
 	}
 	vector<pair<float, wordID>> ret;
-	rep(i, 0, (int)words.size()) {
-		ret.push_back(make_pair(-similarity(getID(s), wordID(i)), wordID(i)));
+	rep(i, 0, (int)index2id.size()) {
+		ret.push_back(make_pair(-similarity(dict.getID(s), index2id[i]), index2id[i]));
 	}
 	sort(all(ret));
 	vector<pair<float, string>> res;
 	rep(i, 0, 10) {
-		res.push_back(make_pair(-ret[i].first, getWord(ret[i].second)));
+		res.push_back(make_pair(-ret[i].first, dict.getWord(ret[i].second)));
 	}
 	return res;
 }

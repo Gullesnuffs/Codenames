@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Dictionary.h"
-#include "Utilities.h"
-#include "SimilarityEngine.h"
 #include "InappropriateEngine.h"
+#include "SimilarityEngine.h"
+#include "Utilities.h"
 
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
 
 struct Bot {
 	enum class CardType { MINE, OPPONENT, CIVILIAN, ASSASSIN };
@@ -86,13 +86,14 @@ struct Bot {
 	// A list of all clues that have already been given to the team
 	std::vector<wordID> oldClues;
 
+	Dictionary &dict;
 	SimilarityEngine &engine;
 	InappropriateEngine &inappropriateEngine;
 
 	void setDifficulty(Difficulty difficulty);
 
-	Bot(SimilarityEngine &engine, InappropriateEngine &inappropriateEngine)
-		: engine(engine), inappropriateEngine(inappropriateEngine) {
+	Bot(Dictionary &dict, SimilarityEngine &engine, InappropriateEngine &inappropriateEngine)
+		: dict(dict), engine(engine), inappropriateEngine(inappropriateEngine) {
 		setDifficulty(Difficulty::EASY);
 	}
 
@@ -113,11 +114,14 @@ struct Bot {
 		CardType type;
 	};
 
-	std::pair<float, std::vector<wordID>> getWordScore(wordID word, std::vector<ValuationItem> *valuation,
-											 bool doInflate);
+	std::pair<float, std::vector<wordID>> getWordScore(wordID word,
+													   std::vector<ValuationItem> *valuation,
+													   bool doInflate);
 
-	void setWords(const std::vector<std::string> &_myWords, const std::vector<std::string> &_opponentWords,
-				  const std::vector<std::string> &_civilianWords, const std::vector<std::string> &_assassinWords);
+	void setWords(const std::vector<std::string> &_myWords,
+				  const std::vector<std::string> &_opponentWords,
+				  const std::vector<std::string> &_civilianWords,
+				  const std::vector<std::string> &_assassinWords);
 
 	void createBoardWords();
 

@@ -1,9 +1,9 @@
 #include "GameInterface.h"
-#include "Utilities.h"
-#include <iostream>
-#include <iomanip>
 #include <cmath>
+#include <iomanip>
+#include <iostream>
 #include <map>
+#include "Utilities.h"
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define rrep(i, a, b) for (int i = (a)-1; i >= int(b); --i)
@@ -25,7 +25,8 @@ string orderSuffix(int p) {
 	}
 }
 
-void GameInterface::printValuation(const string &word, const vector<Bot::ValuationItem> &valuation) {
+void GameInterface::printValuation(const string &word,
+								   const vector<Bot::ValuationItem> &valuation) {
 	cout << "Printing statistics for \"" << denormalize(word) << "\"" << endl;
 	map<CardType, string> desc;
 	desc[CardType::MINE] = "(My)";
@@ -60,14 +61,13 @@ void GameInterface::commandSuggestWord() {
 		rep(i, 0, (int)results.size()) {
 			auto res = results[i];
 			cout << (i + 1) << "\t" << setprecision(3) << fixed << res.score << "\t"
-				 << engine.stat(engine.getID(res.word)) << "\t" << res.word << " " << res.number
+				 << engine.stat(dict.getID(res.word)) << "\t" << res.word << " " << res.number
 				 << endl;
 		}
 		cout << endl;
 
-		int p = engine.getPopularity(engine.getID(best.word));
-		cout << "The best clue found is " << denormalize(best.word) << " " << best.number
-			 << endl;
+		int p = dict.getPopularity(dict.getID(best.word));
+		cout << "The best clue found is " << denormalize(best.word) << " " << best.number << endl;
 		cout << best.word << " is the " << p << orderSuffix(p) << " most popular word" << endl;
 	}
 }
@@ -150,7 +150,7 @@ void GameInterface::commandScore() {
 		return;
 	}
 	vector<ValuationItem> val;
-	pair<float, vector<wordID>> res = bot.getWordScore(engine.getID(word), &val, true);
+	pair<float, vector<wordID>> res = bot.getWordScore(dict.getID(word), &val, true);
 	printValuation(word, val);
 	cout << denormalize(word) << " " << res.second.size() << " has score " << res.first << endl;
 }

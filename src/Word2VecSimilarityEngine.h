@@ -3,18 +3,18 @@
 #include "Dictionary.h"
 #include "SimilarityEngine.h"
 
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 #include "Utilities.h"
 
 struct Word2VecSimilarityEngine final : SimilarityEngine {
    private:
 	int formatVersion, modelid;
-	std::map<std::string, wordID> word2id;
 	std::vector<std::vector<float>> words;
-	std::vector<std::string> wordsStrings;
+	std::vector<wordID> index2id;
+	Dictionary &dict;
 	enum Models { GLOVE = 1, CONCEPTNET = 2 };
 
 	// All word vectors are stored normalized -- wordNorms holds their original squared norms.
@@ -28,6 +28,8 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	float similarity(const std::vector<float> &v1, const std::vector<float> &v2);
 
    public:
+	Word2VecSimilarityEngine(Dictionary &dict) : dict(dict) {}
+
 	/** Arbitrary statistic, in this case the word norm. */
 	float stat(wordID s);
 
@@ -36,20 +38,7 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	/** Returns true if successful */
 	bool load(const std::string &fileName, bool verbose);
 
-	/** Top N most popular words */
-	std::vector<wordID> getCommonWords(int vocabularySize);
-
 	float similarity(wordID fixedWord, wordID dynWord);
-
-	/** ID representing a particular word */
-	wordID getID(const std::string &s);
-
-	/** Popularity of a word, the most popular word has a popularity of 1, the second most popular
-	 * has a popularity of 2 etc. */
-	int getPopularity(wordID id);
-
-	/** Word string corresponding to the ID */
-	const std::string &getWord(wordID id);
 
 	/** True if the word2vec model includes a vector for the specified word */
 	bool wordExists(const std::string &word);

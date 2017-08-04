@@ -1,10 +1,10 @@
-#include "Word2VecSimilarityEngine.h"
-#include "SimilarityEngine.h"
-#include "Dictionary.h"
-#include "InappropriateEngine.h"
-#include "GameInterface.h"
 #include "Bot.h"
+#include "Dictionary.h"
+#include "GameInterface.h"
+#include "InappropriateEngine.h"
+#include "SimilarityEngine.h"
 #include "Utilities.h"
+#include "Word2VecSimilarityEngine.h"
 
 #include <algorithm>
 #include <cassert>
@@ -14,12 +14,12 @@
 #include <iostream>
 #include <map>
 #include <queue>
+#include <random>
 #include <set>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 #include <vector>
-#include <random>
-#include <sstream>
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define rrep(i, a, b) for (int i = (a)-1; i >= int(b); --i)
@@ -71,13 +71,13 @@ void batchMain() {
 		else
 			fail("Invalid engine parameter.");
 
-		Word2VecSimilarityEngine word2vecEngine;
+		Dictionary dict("dictionary.txt");
+		Word2VecSimilarityEngine word2vecEngine(dict);
 		if (!word2vecEngine.load(engine, false))
 			fail("Unable to load similarity engine.");
 
-		InappropriateEngine inappropriateEngine;
-		inappropriateEngine.load("inappropriate.txt");
-		Bot bot(word2vecEngine, inappropriateEngine);
+		InappropriateEngine inappropriateEngine("inappropriate.txt", dict);
+		Bot bot(dict, word2vecEngine, inappropriateEngine);
 
 		char color;
 		cin >> color;
@@ -215,7 +215,7 @@ void batchMain() {
 	}
 }
 
-void simMain () {
+void simMain() {
 	string engine = "conceptnet";
 	if (engine == "glove")
 		engine = "models/glove.840B.330d.bin";
@@ -226,13 +226,13 @@ void simMain () {
 	else
 		cerr << "Invalid engine parameter.";
 
-	Word2VecSimilarityEngine word2vecEngine;
+	Dictionary dict("dictionary.txt");
+	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
 
-
 	string line;
-	while(getline(cin, line)) {
+	while (getline(cin, line)) {
 		stringstream ss(line);
 
 		string query;
@@ -242,17 +242,19 @@ void simMain () {
 		ss >> s;
 		assert(s == ":");
 		bool skipped = false;
-		while(ss >> s) {
+		while (ss >> s) {
 			if (s == ":") {
 				skipped = true;
 			} else {
-				cout << query << " " << s << " " << word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(s)) << " " << (skipped ? 0 : 1) << endl;
+				cout << query << " " << s << " "
+					 << word2vecEngine.similarity(dict.getID(query), dict.getID(s)) << " "
+					 << (skipped ? 0 : 1) << endl;
 			}
 		}
 	}
 }
 
-void simMain2 () {
+void simMain2() {
 	string engine = "conceptnet";
 	if (engine == "glove")
 		engine = "models/glove.840B.330d.bin";
@@ -263,13 +265,13 @@ void simMain2 () {
 	else
 		cerr << "Invalid engine parameter.";
 
-	Word2VecSimilarityEngine word2vecEngine;
+	Dictionary dict("dictionary.txt");
+	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
 
-
 	string line;
-	while(getline(cin, line)) {
+	while (getline(cin, line)) {
 		stringstream ss(line);
 
 		string query;
@@ -281,19 +283,20 @@ void simMain2 () {
 		bool skipped = false;
 		vector<string> picked;
 		vector<string> all;
-		while(ss >> s) {
+		while (ss >> s) {
 			if (s == ":") {
 				skipped = true;
 			} else {
-				if (!skipped) picked.push_back(s);
+				if (!skipped)
+					picked.push_back(s);
 				all.push_back(s);
 			}
 		}
 
 		for (int i = 0; i < (int)picked.size(); i++) {
 			for (int j = i + 1; j < (int)all.size(); j++) {
-				float s1 = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(picked[i]));
-				float s2 = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(all[j]));
+				float s1 = word2vecEngine.similarity(dict.getID(query), dict.getID(picked[i]));
+				float s2 = word2vecEngine.similarity(dict.getID(query), dict.getID(all[j]));
 				cout << min(s1, s2) << " " << max(s1, s2) << " " << (s1 < s2 ? 1 : 0) << endl;
 				cout << max(s1, s2) << " " << min(s1, s2) << " " << (s1 < s2 ? 0 : 1) << endl;
 			}
@@ -305,7 +308,8 @@ int sign(int v) {
 	return v > 0 ? 1 : (v < 0 ? -1 : 0);
 }
 
-/** -1 if the indices are in reverse order, +1 if they are in increasing order, otherwise somewhere in between. */
+/** -1 if the indices are in reverse order, +1 if they are in increasing order, otherwise somewhere
+ * in between. */
 float kendallRankCoefficient(vector<int> indices) {
 	float numerator = 0;
 	int differingPairs = 0;
@@ -331,16 +335,16 @@ struct Feature {
 	vector<float> gloveVector;
 	vector<float> clueGloveVector;
 
-	void writeTo(ofstream& fout) {
+	void writeTo(ofstream &fout) {
 		fout << conceptnetSimilarity << " ";
 		fout << conceptnetNorm << " ";
 		fout << gloveSimilarity << " ";
 		fout << gloveNorm << " ";
-		for(auto x : conceptnetVector)
+		for (auto x : conceptnetVector)
 			fout << x << " ";
 		/*for(auto x : gloveVector)
 			fout << x << " ";*/
-		for(auto x : clueConceptnetVector)
+		for (auto x : clueConceptnetVector)
 			fout << x << " ";
 		/*for(auto x : clueGloveVector)
 			fout << x << " ";*/
@@ -348,33 +352,33 @@ struct Feature {
 };
 
 void extractFeatures(string trainFileName, string testFileName) {
-
-	Word2VecSimilarityEngine conceptnetEngine;
+	Dictionary dict("dictionary.txt");
+	Word2VecSimilarityEngine conceptnetEngine(dict);
 	if (!conceptnetEngine.load("models/conceptnet.bin", false))
 		cerr << "Unable to load similarity engine.";
-	
-	Word2VecSimilarityEngine gloveEngine;
+
+	Word2VecSimilarityEngine gloveEngine(dict);
 	if (!gloveEngine.load("models/glove.840B.330d.bin", false))
 		cerr << "Unable to load similarity engine.";
-
 
 	ofstream trainFile;
 	ofstream testFile;
 	trainFile.open(trainFileName);
-	if(testFileName != ""){
+	if (testFileName != "") {
 		testFile.open(testFileName);
 	}
 
 	string line;
-	while(getline(cin, line)) {
-		bool trainSet = (rand()%10 < 8); // Use 80% of data for training
-		if(testFileName == "")
+	while (getline(cin, line)) {
+		bool trainSet = (rand() % 10 < 8);  // Use 80% of data for training
+		if (testFileName == "")
 			trainSet = true;
 		stringstream ss(line);
 
 		string query;
 		ss >> query;
-		if (!conceptnetEngine.wordExists(query) || !gloveEngine.wordExists(query)) continue;
+		if (!conceptnetEngine.wordExists(query) || !gloveEngine.wordExists(query))
+			continue;
 
 		string s;
 		ss >> s;
@@ -383,26 +387,26 @@ void extractFeatures(string trainFileName, string testFileName) {
 		vector<string> picked;
 		vector<Feature> features;
 		vector<string> words;
-		while(ss >> s) {
+		while (ss >> s) {
 			if (s == ":") {
 				skipped = true;
 			} else if (conceptnetEngine.wordExists(s) && gloveEngine.wordExists(s)) {
 				Feature f;
-				f.conceptnetSimilarity = conceptnetEngine.similarity(conceptnetEngine.getID(query), conceptnetEngine.getID(s));
-				f.conceptnetNorm = conceptnetEngine.stat(conceptnetEngine.getID(s));
-				f.conceptnetVector = conceptnetEngine.getVector(conceptnetEngine.getID(s));
-				f.clueConceptnetVector = conceptnetEngine.getVector(conceptnetEngine.getID(query));
-				f.gloveSimilarity = gloveEngine.similarity(gloveEngine.getID(query), gloveEngine.getID(s));
-				f.gloveNorm = gloveEngine.stat(gloveEngine.getID(s));
-				f.gloveVector = gloveEngine.getVector(gloveEngine.getID(s));
-				f.clueGloveVector = gloveEngine.getVector(gloveEngine.getID(query));
-				for (int i = 0; i < (int)words.size(); i++){
-					if(trainSet){
+				f.conceptnetSimilarity =
+					conceptnetEngine.similarity(dict.getID(query), dict.getID(s));
+				f.conceptnetNorm = conceptnetEngine.stat(dict.getID(s));
+				f.conceptnetVector = conceptnetEngine.getVector(dict.getID(s));
+				f.clueConceptnetVector = conceptnetEngine.getVector(dict.getID(query));
+				f.gloveSimilarity = gloveEngine.similarity(dict.getID(query), dict.getID(s));
+				f.gloveNorm = gloveEngine.stat(dict.getID(s));
+				f.gloveVector = gloveEngine.getVector(dict.getID(s));
+				f.clueGloveVector = gloveEngine.getVector(dict.getID(query));
+				for (int i = 0; i < (int)words.size(); i++) {
+					if (trainSet) {
 						features[i].writeTo(trainFile);
 						f.writeTo(trainFile);
 						trainFile << endl;
-					}
-					else{
+					} else {
 						features[i].writeTo(testFile);
 						f.writeTo(testFile);
 						testFile << endl;
@@ -417,12 +421,12 @@ void extractFeatures(string trainFileName, string testFileName) {
 	}
 
 	trainFile.close();
-	if(testFileName != ""){
+	if (testFileName != "") {
 		testFile.close();
 	}
 }
 
-void benchSimilarity () {
+void benchSimilarity() {
 	string engine = "conceptnet";
 	if (engine == "glove")
 		engine = "models/glove.840B.330d.bin";
@@ -433,7 +437,8 @@ void benchSimilarity () {
 	else
 		cerr << "Invalid engine parameter.";
 
-	Word2VecSimilarityEngine word2vecEngine;
+	Dictionary dict("dictionary.txt");
+	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
 
@@ -441,26 +446,27 @@ void benchSimilarity () {
 	float weight = 0;
 
 	string line;
-	while(getline(cin, line)) {
+	while (getline(cin, line)) {
 		stringstream ss(line);
 
 		string query;
 		ss >> query;
-		if (!word2vecEngine.wordExists(query)) continue;
+		if (!word2vecEngine.wordExists(query))
+			continue;
 
 		string s;
 		ss >> s;
 		assert(s == ":");
 		bool skipped = false;
 		vector<string> picked;
-		vector<pair<float,int>> all;
+		vector<pair<float, int>> all;
 		vector<string> words;
 		int nextIndex = 0;
-		while(ss >> s) {
+		while (ss >> s) {
 			if (s == ":") {
 				skipped = true;
 			} else if (word2vecEngine.wordExists(s)) {
-				float sim = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(s));
+				float sim = word2vecEngine.similarity(dict.getID(query), dict.getID(s));
 				all.push_back(make_pair(sim, nextIndex));
 				words.push_back(s);
 				if (!skipped) {
@@ -483,8 +489,8 @@ void benchSimilarity () {
 		cout << score << endl;
 		if (score > 0.5f) {
 			cout << query << endl;
-			for(auto w : words) {
-				float sim = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(w));
+			for (auto w : words) {
+				float sim = word2vecEngine.similarity(dict.getID(query), dict.getID(w));
 				cout << " " << w << " " << sim << endl;
 			}
 			cout << line << endl;
@@ -501,10 +507,10 @@ void serverMain() {
 	srand(time(0));
 	stringstream fileName;
 	auto t = time(nullptr);
-    auto tm = *localtime(&t);
+	auto tm = *localtime(&t);
 	fileName << "test_data/ordered5/output-" << put_time(&tm, "%Y-%m-%d %H:%M:%S") << ".txt";
 	ofstream output(fileName.str());
-	if(!output) {
+	if (!output) {
 		cerr << "Failed to open output file '" << fileName.str() << "'" << endl;
 		return;
 	}
@@ -521,50 +527,51 @@ void serverMain() {
 		return;
 	}
 
-	Word2VecSimilarityEngine word2vecEngine;
+	Dictionary dict("dictionary.txt");
+	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
 
-	InappropriateEngine inappropriateEngine;
-	inappropriateEngine.load("inappropriate.txt");
+	InappropriateEngine inappropriateEngine("inappropriate.txt", dict);
 
-	auto words = word2vecEngine.getCommonWords(5000);
+	auto words = dict.getCommonWords(5000);
 	// Remove the most common words
-	words.erase(words.begin(), words.begin()+100);
+	words.erase(words.begin(), words.begin() + 100);
 
 	string COLOR_RED = "\033[31m";
-    string COLOR_GREEN = "\033[32m";
-    string COLOR_BLUE = "\033[34m";
-    string RESET = "\033[0m";
+	string COLOR_GREEN = "\033[32m";
+	string COLOR_BLUE = "\033[34m";
+	string RESET = "\033[0m";
 
-    cout << "Starting" << endl;
-    auto wordListFile = ifstream("wordlist-eng.txt");
-    vector<string> wordList;
-    string wordListWord;
-    while(wordListFile >> wordListWord) {
-    	string normalized = normalize(wordListWord);
-    	if (word2vecEngine.wordExists(normalized)) {
-    		wordList.push_back(normalized);
-    	}
-    }
-    cout << "Loaded Code Names word list with " << wordList.size() << " words" << endl;
+	cout << "Starting" << endl;
+	auto wordListFile = ifstream("wordlist-eng.txt");
+	vector<string> wordList;
+	string wordListWord;
+	while (wordListFile >> wordListWord) {
+		string normalized = normalize(wordListWord);
+		if (word2vecEngine.wordExists(normalized)) {
+			wordList.push_back(normalized);
+		}
+	}
+	cout << "Loaded Code Names word list with " << wordList.size() << " words" << endl;
 
-	while(true) {
-		string query = word2vecEngine.getWord(words[rand() % words.size()]);
+	while (true) {
+		string query = dict.getWord(words[rand() % words.size()]);
 		vector<string> subset;
 		for (int i = 0; i < 5; i++) {
 			// Range from -0.2 to 1.2
 			float targetSimilarity = rand() / (float)RAND_MAX;
-			targetSimilarity = -0.2f + targetSimilarity*1.4;
+			targetSimilarity = -0.2f + targetSimilarity * 1.4;
 
 			float bestSimilarity = -10;
 			string bestWord = "";
-			for(auto w: wordList) {
-				float similarity = word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(w));
+			for (auto w : wordList) {
+				float similarity = word2vecEngine.similarity(dict.getID(query), dict.getID(w));
 				float d1 = abs(similarity - targetSimilarity);
 				float d2 = abs(bestSimilarity - targetSimilarity);
 				if (d1 < d2 && fmod(rand(), d1 + d2) < d2) {
-					if (!superOrSubstring(w, query) && find(subset.begin(), subset.end(), w) == subset.end()) {
+					if (!superOrSubstring(w, query) &&
+						find(subset.begin(), subset.end(), w) == subset.end()) {
 						bestSimilarity = similarity;
 						bestWord = w;
 					}
@@ -578,15 +585,18 @@ void serverMain() {
 		random_shuffle(subset.begin(), subset.end());
 		for (int i = 0; i < (int)subset.size(); i++) {
 			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i];
-			//cout << " " << word2vecEngine.similarity(word2vecEngine.getID(query), word2vecEngine.getID(subset[i]));
+			// cout << " " << word2vecEngine.similarity(dict.getID(query),
+			// dict.getID(subset[i]));
 			cout << endl;
 		}
 
 		bool worked = false;
-		while(!worked) {
+		while (!worked) {
 			worked = true;
 
-			cout << "Enter order as e.g '2 4'. Items which are not included are assumed to be very unrelated to the query." << endl;
+			cout << "Enter order as e.g '2 4'. Items which are not included are assumed to be very "
+					"unrelated to the query."
+				 << endl;
 			string line;
 			getline(cin, line);
 
@@ -596,7 +606,8 @@ void serverMain() {
 			}
 
 			if (line == "") {
-				cout << COLOR_RED << "Are you sure that no words are related to the query? [yes/no]" << RESET << endl;
+				cout << COLOR_RED << "Are you sure that no words are related to the query? [yes/no]"
+					 << RESET << endl;
 				string answer;
 				getline(cin, answer);
 				if (answer != "yes") {
@@ -608,28 +619,29 @@ void serverMain() {
 			stringstream ss(line);
 			int itemIndex;
 			vector<string> picked;
-			while(ss >> itemIndex) {
+			while (ss >> itemIndex) {
 				if (itemIndex < 1 || itemIndex > (int)subset.size()) {
 					cout << COLOR_RED << "Index out of range" << RESET << endl;
 					worked = false;
 					break;
 				}
 
-				if (find(picked.begin(), picked.end(), subset[itemIndex-1]) != picked.end()) {
+				if (find(picked.begin(), picked.end(), subset[itemIndex - 1]) != picked.end()) {
 					cout << COLOR_RED << "Duplicate index" << RESET << endl;
 					worked = false;
 					break;
 				}
 
-				picked.push_back(subset[itemIndex-1]);
+				picked.push_back(subset[itemIndex - 1]);
 			}
 
 			if (worked) {
 				output << query << "\t:\t";
-				for(auto w : picked) output << w << "\t";
+				for (auto w : picked)
+					output << w << "\t";
 				output << "\t:\t";
-				for(auto w : subset) {
-					if(find(picked.begin(), picked.end(), w) == picked.end()) {
+				for (auto w : subset) {
+					if (find(picked.begin(), picked.end(), w) == picked.end()) {
 						output << w << "\t";
 					}
 				}
@@ -661,23 +673,23 @@ int main(int argc, char **argv) {
 	if (argc >= 3 && argv[1] == string("--extract-features")) {
 		string trainingFile = argv[2];
 		string testFile = argc >= 4 ? argv[3] : "";
-		if(argc >= 5){
+		if (argc >= 5) {
 			srand(atoi(argv[4]));
 		}
 		extractFeatures(trainingFile, testFile);
 		return 0;
 	}
 
-	Word2VecSimilarityEngine word2vecEngine;
+	Dictionary dict("dictionary.txt");
+	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load("data.bin", true)) {
 		cerr << "Failed to load data.bin" << endl;
 		return 1;
 	}
 
-	InappropriateEngine inappropriateEngine;
-	inappropriateEngine.load("inappropriate.txt");
+	InappropriateEngine inappropriateEngine("inappropriate.txt", dict);
 
-	GameInterface interface(word2vecEngine, inappropriateEngine);
+	GameInterface interface(dict, word2vecEngine, inappropriateEngine);
 	interface.run();
 	return 0;
 }
