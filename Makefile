@@ -11,4 +11,4 @@ calc: calc.cpp
 	g++ -o calc $(FLAGS) calc.cpp
 
 format:
-	clang-format -i $(CPP) $(H)
+	clang-format -style=file -i $(CPP) $(H)
