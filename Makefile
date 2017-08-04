@@ -9,7 +9,7 @@ codenames: $(H) $(COMMON_CPP) src/codenames.cpp
 	g++ -o codenames $(FLAGS) $(COMMON_CPP) src/codenames.cpp
 
 calc: $(H) $(COMMON_CPP) src/calc.cpp
-	g++ -o codenames $(FLAGS) $(COMMON_CPP) src/calc.cpp
+	g++ -o calc $(FLAGS) $(COMMON_CPP) src/calc.cpp
 
 format:
 	clang-format -style=file -i $(CPP) $(H)
