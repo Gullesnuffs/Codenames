@@ -11,12 +11,12 @@
 using namespace std;
 
 float Word2VecSimilarityEngine::similarity(const vector<float> &v1, const vector<float> &v2) {
-	float ret = 0;
+	float sim = 0;
 	int dim = (int)v1.size();
 	rep(i, 0, dim) {
-		ret += v1[i] * v2[i];
+		sim += v1[i] * v2[i];
 	}
-	return ret;
+	return sim;
 }
 
 /** Arbitrary statistic, in this case the word norm. */
@@ -103,7 +103,7 @@ bool Word2VecSimilarityEngine::wordExists(const string &word) {
 }
 
 float Word2VecSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
-	float sim = similarity(words[fixedWord], words[dynWord]);
+	float sim = similarity(words.at(fixedWord), words.at(dynWord));
 	if (modelid == Models::GLOVE) {
 		return sim * wordNorms[dynWord] / 4.5f;
 	} else if (modelid == Models::CONCEPTNET) {
@@ -118,9 +118,14 @@ vector<pair<float, string>> Word2VecSimilarityEngine::similarWords(const string 
 		cout << denormalize(s) << " does not occur in the corpus" << endl;
 		return vector<pair<float, string>>();
 	}
+	return similarWords(getVector(dict.getID(s)));
+}
+
+vector<pair<float, string>> Word2VecSimilarityEngine::similarWords(const vector<float> &s) {
+	
 	vector<pair<float, wordID>> ret;
-	rep(i, 0, (int)index2id.size()) {
-		ret.push_back(make_pair(-similarity(dict.getID(s), index2id[i]), index2id[i]));
+	for(auto id : index2id) {
+		ret.push_back(make_pair(-similarity(s, getVector(id)), id));
 	}
 	sort(all(ret));
 	vector<pair<float, string>> res;

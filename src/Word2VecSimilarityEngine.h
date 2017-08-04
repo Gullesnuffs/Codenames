@@ -28,12 +28,21 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	float similarity(const std::vector<float> &v1, const std::vector<float> &v2);
 
    public:
+   	inline int dimension() {
+   		// TODO: Use field instead?
+   		return words[0].size();
+   	}
+
 	Word2VecSimilarityEngine(Dictionary &dict) : dict(dict) {}
 
 	/** Arbitrary statistic, in this case the word norm. */
 	float stat(wordID s);
 
 	std::vector<float> getVector(wordID s);
+
+	inline float getNorm(wordID s) {
+		return wordNorms[(int)s];
+	}
 
 	/** Returns true if successful */
 	bool load(const std::string &fileName, bool verbose);
@@ -44,4 +53,5 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	bool wordExists(const std::string &word);
 
 	std::vector<std::pair<float, std::string>> similarWords(const std::string &s);
+	std::vector<std::pair<float, std::string>> similarWords(const std::vector<float>& vec);
 };

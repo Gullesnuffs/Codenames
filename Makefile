@@ -1,14 +1,15 @@
-CPP = src/*.cpp
 H = src/*.h
 FLAGS = -Wall -Wextra -Ofast -march=native -Wfatal-errors -std=c++11
 
 all: codenames calc
 
-codenames: $(CPP) $(H)
-	g++ -o codenames $(FLAGS) $(CPP)
+COMMON_CPP = src/Bot.cpp src/Dictionary.cpp src/GameInterface.cpp src/InappropriateEngine.cpp src/Utilities.cpp src/Word2VecSimilarityEngine.cpp
 
-calc: calc.cpp
-	g++ -o calc $(FLAGS) calc.cpp
+codenames: $(H) $(COMMON_CPP) src/codenames.cpp
+	g++ -o codenames $(FLAGS) $(COMMON_CPP) src/codenames.cpp
+
+calc: $(H) $(COMMON_CPP) src/calc.cpp
+	g++ -o codenames $(FLAGS) $(COMMON_CPP) src/calc.cpp
 
 format:
 	clang-format -style=file -i $(CPP) $(H)
