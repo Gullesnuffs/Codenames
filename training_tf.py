@@ -14,9 +14,12 @@ testSamples = np.loadtxt(sys.argv[2], ndmin=2)
 
 dim = trainSamples.shape[1]//2
 
+# Extract the feature for the first word (a human picked the first word before the second word)
 trainSamples1 = trainSamples[:, 0:dim]
+# Similarity for the first word to the query
 trainConceptnet1 = trainSamples1[:, 0:1]
 
+# Extract the feature for the second word
 trainSamples2 = trainSamples[:, dim:(dim*2)]
 trainConceptnet2 = trainSamples2[:, 0:1]
 
@@ -36,6 +39,7 @@ C = tf.constant(0.0)
 value1 = conceptnet1 * (A + conceptnet1 * (B + C * conceptnet1))
 value2 = conceptnet2 * (A + conceptnet2 * (B + C * conceptnet2))
 
+# Difference in similarity (to the query) between the first and second words
 simDiff = value1 - value2
 
 invstddev = tf.Variable(0.0)
