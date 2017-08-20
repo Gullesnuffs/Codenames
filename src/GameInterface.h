@@ -1,8 +1,5 @@
 #pragma once
 
-#include <set>
-#include <string>
-#include <vector>
 #include "FuzzyBot.h"
 #include "ProbabilityBot.h"
 #include "Bot.h"
@@ -10,13 +7,18 @@
 #include "InappropriateEngine.h"
 #include "SimilarityEngine.h"
 
+#include <set>
+#include <string>
+#include <vector>
+#include <memory>
+
 class GameInterface {
 	typedef Bot::ValuationItem ValuationItem;
 	typedef Bot::Result Result;
 	typedef Bot::CardType CardType;
 	Dictionary &dict;
 	SimilarityEngine &engine;
-	Bot* bot;
+	std::unique_ptr<Bot> bot;
 	std::vector<std::string> myWords, opponentWords, civilianWords, assassinWords;
 	std::string myColor;
 
@@ -40,7 +42,7 @@ class GameInterface {
 	GameInterface(Dictionary &dict, SimilarityEngine &engine,
 				  InappropriateEngine &inappropriateEngine)
 		: dict(dict), engine(engine) {
-			bot = new ProbabilityBot(dict, engine, inappropriateEngine);
+			bot = std::unique_ptr<ProbabilityBot>(new ProbabilityBot(dict, engine, inappropriateEngine));
 		}
 
 	void run();
