@@ -77,7 +77,7 @@ void batchMain() {
 			fail("Unable to load similarity engine.");
 
 		InappropriateEngine inappropriateEngine("inappropriate.txt", dict);
-		FuzzyBot bot(dict, word2vecEngine, inappropriateEngine);
+		ProbabilityBot bot(dict, word2vecEngine, inappropriateEngine);
 
 		char color;
 		cin >> color;
