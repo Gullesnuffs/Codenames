@@ -81,8 +81,8 @@ float ProbabilityBot::getProbabilityScore(wordID word, int number) {
 
 	for (int i = 0; i < simulations; i++) {
 		for (int j = 0; j < boardWords.size(); j++) {
-			//remaining[j] = score[j] >= distribution01(generator);
-			remaining[j] = true;
+			remaining[j] = score[j] >= distribution01(generator);
+			//remaining[j] = true;
 		}
 		//cerr << "Simulation " << (i+1) << endl;
 		for (int j = 0; j < boardWords.size(); j++) {
@@ -162,12 +162,20 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 
 	sort(simulationScores.rbegin(), simulationScores.rend());
 
+	vector<Bot::Result> results;
 	for (int i = 0; i < 10; i++) {
 		auto item = simulationScores[i];
+		Result result;
+		result.word = dict.getWord(item.second);
+		result.number = item.first.second;
+		result.score = item.first.first;
+		result.valuations = vector<ValuationItem>(0);
+		results.push_back(result);
+
 		cout << item.first.first << " " << item.first.second << " " << dict.getWord(item.second) << endl;
 	}
 
-	return vector<Bot::Result>(0);
+	return results;
 
 	/*map<int, int> bitRepresentation;
 	int myWordsFound = 0;
