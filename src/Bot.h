@@ -23,6 +23,10 @@ struct Bot {
 		float score;
 		std::string word;
 		CardType type;
+
+		bool operator< (const ValuationItem other) const {
+			return score < other.score;
+		}
 	};
 	struct Result {
 		std::string word;

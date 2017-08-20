@@ -75,7 +75,7 @@ float ProbabilityBot::getProbabilityScore(wordID word, int number) {
 	int simulations = 1000;
 	double totScore = 0;
 	vector<bool> remaining(boardWords.size());
-	normal_distribution<double> distribution(0.0, 0.24 * 0.5);
+	normal_distribution<double> distribution(0.0, 0.24 * 0.2);
 	uniform_real_distribution<double> distribution01(0.0, 1.0);
 	default_random_engine generator;
 
@@ -173,6 +173,7 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 		for (auto word : boardWords) {
 			result.valuations.push_back({ engine.similarity(word.id, item.second), word.word, word.type });
 		}
+		sort(result.valuations.rbegin(), result.valuations.rend());
 		results.push_back(result);
 
 		//cout << item.first.first << " " << item.first.second << " " << dict.getWord(item.second) << endl;
