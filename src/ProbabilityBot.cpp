@@ -169,7 +169,10 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 		result.word = dict.getWord(item.second);
 		result.number = item.first.second;
 		result.score = item.first.first;
-		result.valuations = vector<ValuationItem>(0);
+		result.valuations = vector<ValuationItem>();
+		for (auto word : boardWords) {
+			result.valuations.push_back({ engine.similarity(word.id, item.second), word.word, word.type });
+		}
 		results.push_back(result);
 
 		//cout << item.first.first << " " << item.first.second << " " << dict.getWord(item.second) << endl;
