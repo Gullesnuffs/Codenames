@@ -172,7 +172,7 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 		result.valuations = vector<ValuationItem>(0);
 		results.push_back(result);
 
-		cout << item.first.first << " " << item.first.second << " " << dict.getWord(item.second) << endl;
+		//cout << item.first.first << " " << item.first.second << " " << dict.getWord(item.second) << endl;
 	}
 
 	return results;
