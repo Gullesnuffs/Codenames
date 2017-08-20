@@ -3,7 +3,7 @@ FLAGS = -Wall -Wextra -Ofast -march=native -Wfatal-errors -std=c++11
 
 all: codenames calc
 
-COMMON_CPP = src/Bot.cpp src/Dictionary.cpp src/GameInterface.cpp src/InappropriateEngine.cpp src/Utilities.cpp src/Word2VecSimilarityEngine.cpp
+COMMON_CPP = src/Bot.cpp src/FuzzyBot.cpp src/Dictionary.cpp src/GameInterface.cpp src/InappropriateEngine.cpp src/Utilities.cpp src/Word2VecSimilarityEngine.cpp
 
 codenames: $(H) $(COMMON_CPP) src/codenames.cpp
 	g++ -o codenames $(FLAGS) $(COMMON_CPP) src/codenames.cpp

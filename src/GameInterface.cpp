@@ -45,12 +45,12 @@ void GameInterface::commandReset() {
 	opponentWords.clear();
 	civilianWords.clear();
 	assassinWords.clear();
-	bot.setWords(myWords, opponentWords, civilianWords, assassinWords);
+	bot->setWords(myWords, opponentWords, civilianWords, assassinWords);
 }
 
 void GameInterface::commandSuggestWord() {
 	cout << "Thinking..." << endl;
-	vector<Result> results = bot.findBestWords();
+	vector<Result> results = bot->findBestWords();
 	if (results.empty()) {
 		cout << "Not a clue." << endl;
 	} else {
@@ -139,7 +139,7 @@ void GameInterface::commandModifyBoard(const string &command) {
 			cout << denormalize(word) << " was not found in the dictionary" << endl;
 		}
 	}
-	bot.setWords(myWords, opponentWords, civilianWords, assassinWords);
+	bot->setWords(myWords, opponentWords, civilianWords, assassinWords);
 }
 
 void GameInterface::commandScore() {
@@ -150,7 +150,7 @@ void GameInterface::commandScore() {
 		return;
 	}
 	vector<ValuationItem> val;
-	pair<float, vector<wordID>> res = bot.getWordScore(dict.getID(word), &val, true);
+	pair<float, vector<wordID>> res = bot->getWordScore(dict.getID(word), &val, true);
 	printValuation(word, val);
 	cout << denormalize(word) << " " << res.second.size() << " has score " << res.first << endl;
 }

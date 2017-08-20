@@ -3,6 +3,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "FuzzyBot.h"
 #include "Bot.h"
 #include "Dictionary.h"
 #include "InappropriateEngine.h"
@@ -14,7 +15,7 @@ class GameInterface {
 	typedef Bot::CardType CardType;
 	Dictionary &dict;
 	SimilarityEngine &engine;
-	Bot bot;
+	Bot* bot;
 	std::vector<std::string> myWords, opponentWords, civilianWords, assassinWords;
 	std::string myColor;
 
@@ -37,7 +38,9 @@ class GameInterface {
    public:
 	GameInterface(Dictionary &dict, SimilarityEngine &engine,
 				  InappropriateEngine &inappropriateEngine)
-		: dict(dict), engine(engine), bot(dict, engine, inappropriateEngine) {}
+		: dict(dict), engine(engine) {
+			bot = new FuzzyBot(dict, engine, inappropriateEngine);
+		}
 
 	void run();
 };
