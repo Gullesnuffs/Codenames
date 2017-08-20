@@ -17,10 +17,7 @@ void ProbabilityBot::setDifficulty(Difficulty difficulty) {
 }
 
 float ProbabilityBot::getWordScore(wordID word) {
-	typedef pair<float, BoardWord *> Pa;
-	static vector<Pa> v;
 	int myWordsLeft = 0, opponentWordsLeft = 0;
-	v.clear();
 
 	// Iterate through all words and check how similar the word is to every word on the board.
 	// Add some bonuses to account for the colors of the words.
@@ -169,7 +166,6 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 		result.word = dict.getWord(item.second);
 		result.number = item.first.second;
 		result.score = item.first.first;
-		result.valuations = vector<ValuationItem>();
 		for (auto word : boardWords) {
 			result.valuations.push_back({ engine.similarity(word.id, item.second), word.word, word.type });
 		}
@@ -180,108 +176,6 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 	}
 
 	return results;
-
-	/*map<int, int> bitRepresentation;
-	int myWordsFound = 0;
-	rep(i, 0, boardWords.size()) {
-		if (boardWords[i].type == CardType::MINE &&
-			!hasInfoAbout.count(dict.getWord(boardWords[i].id))) {
-			bitRepresentation[boardWords[i].id] = (1 << myWordsFound);
-			++myWordsFound;
-		} else {
-			bitRepresentation[boardWords[i].id] = 0;
-		}
-	}
-
-	bool usePlanning = (myWordsFound && myWordsFound <= 9);
-	vector<int> minMovesNeeded;
-	vector<float> bestScore;
-	vector<float> bestClueScore;
-	vector<wordID> bestWord;
-	vector<int> bestParent;
-	if (usePlanning) {
-		minMovesNeeded = vector<int>((1 << myWordsFound), 1000);
-		bestScore = vector<float>((1 << myWordsFound), -1000);
-		bestClueScore = vector<float>((1 << myWordsFound), -1000);
-		bestWord = vector<wordID>(1 << myWordsFound);
-		bestParent = vector<int>(1 << myWordsFound);
-		minMovesNeeded[0] = 0;
-		bestScore[0] = 0;
-	}
-
-	for (wordID candidate : candidates) {
-		pair<float, vector<wordID>> res = getWordScore(candidate, nullptr, true);
-		pq.push({{res.first, -((int)res.second.size())}, candidate});
-		if (res.second.size() > 0 && usePlanning) {
-			int bits = 0;
-			for (int matchedWord : res.second) {
-				bits |= bitRepresentation[matchedWord];
-			}
-			float newScore = res.first - valueOfOneTurn;
-			if (bits && newScore > bestScore[bits] && !forbiddenWord(dict.getWord(candidate))) {
-				minMovesNeeded[bits] = 1;
-				bestScore[bits] = newScore;
-				bestWord[bits] = candidate;
-				bestParent[bits] = 0;
-			}
-		}
-	}
-
-	vector<Bot::Result> res;
-
-	if (usePlanning) {
-		// Make a plan so that every word is covered by a clue in as few moves as possible
-
-		for (int i = 0; i < (1 << myWordsFound); ++i) {
-			if (minMovesNeeded[i] != 1)
-				continue;
-			for (int j = 0; j < (1 << myWordsFound); ++j) {
-				int k = (i | j);
-				if (k == i || k == j)
-					continue;
-				float newScore = bestScore[i] + bestScore[j];
-				newScore -= __builtin_popcount(i & j) * overlapPenalty;
-				if (newScore > bestScore[k]) {
-					minMovesNeeded[k] = minMovesNeeded[j] + 1;
-					bestScore[k] = newScore;
-					bestClueScore[k] = bestScore[i];
-					bestParent[k] = j;
-					bestWord[k] = bestWord[i];
-				}
-			}
-		}
-
-		// Reconstruct the best sequence of words
-		int bits = (1 << myWordsFound) - 1;
-		while (bits != 0) {
-			cerr << bits << endl;
-			wordID word = bestWord[bits];
-			bits = bestParent[bits];
-			vector<ValuationItem> val;
-			auto wordScore = getWordScore(word, &val, false);
-			float score = wordScore.first;
-			int number = (int)wordScore.second.size();
-			res.push_back(Bot::Result{dict.getWord(word), number, score, val});
-		}
-		sort(all(res));
-		return res;
-	}
-
-	// Extract the top 'count' words that are not forbidden by the rules
-	while ((int)res.size() < count && !pq.empty()) {
-		auto pa = pq.top();
-		pq.pop();
-		if (!forbiddenWord(dict.getWord(pa.second))) {
-			float score = pa.first.first;
-			int number = -pa.first.second;
-			wordID word = pa.second;
-			vector<ValuationItem> val;
-			getWordScore(word, &val, false);
-			res.push_back(Bot::Result{dict.getWord(word), number, score, val});
-		}
-	}
-
-	return res;*/
 }
 
 void ProbabilityBot::setHasInfo(string word) {

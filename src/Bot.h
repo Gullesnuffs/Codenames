@@ -55,6 +55,8 @@ struct Bot {
 	Bot(Dictionary &dict, SimilarityEngine &engine, InappropriateEngine &inappropriateEngine)
 		: dict(dict), engine(engine), inappropriateEngine(inappropriateEngine) {}
 
+ 	virtual ~Bot() {}
+
 	virtual void setDifficulty(Difficulty difficulty) = 0;
 
 	void addBoardWord(CardType type, const std::string &word);
