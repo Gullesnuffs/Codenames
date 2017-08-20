@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include "FuzzyBot.h"
+#include "ProbabilityBot.h"
 #include "Bot.h"
 #include "Dictionary.h"
 #include "InappropriateEngine.h"
@@ -39,7 +40,7 @@ class GameInterface {
 	GameInterface(Dictionary &dict, SimilarityEngine &engine,
 				  InappropriateEngine &inappropriateEngine)
 		: dict(dict), engine(engine) {
-			bot = new FuzzyBot(dict, engine, inappropriateEngine);
+			bot = new ProbabilityBot(dict, engine, inappropriateEngine);
 		}
 
 	void run();

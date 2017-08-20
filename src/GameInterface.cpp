@@ -149,10 +149,11 @@ void GameInterface::commandScore() {
 		cout << denormalize(word) << " was not found in the dictionary" << endl;
 		return;
 	}
-	vector<ValuationItem> val;
-	pair<float, vector<wordID>> res = bot->getWordScore(dict.getID(word), &val, true);
-	printValuation(word, val);
-	cout << denormalize(word) << " " << res.second.size() << " has score " << res.first << endl;
+	//vector<ValuationItem> val;
+	//pair<float, vector<wordID>> res = bot->getWordScore(dict.getID(word), &val, true);
+	//printValuation(word, val);
+	//cout << denormalize(word) << " " << res.second.size() << " has score " << res.first << endl;
+	cout << "Lol, this is not supported anymore. Please try again later." << endl;
 }
 
 string GameInterface::inputColor() {

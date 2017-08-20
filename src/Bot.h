@@ -57,10 +57,6 @@ struct Bot {
 
 	bool forbiddenWord(const std::string &word);
 
-	virtual std::pair<float, std::vector<wordID>> getWordScore(wordID word,
-													   std::vector<ValuationItem> *valuation,
-													   bool doInflate) = 0;
-
 	void setWords(const std::vector<std::string> &_myWords,
 				  const std::vector<std::string> &_opponentWords,
 				  const std::vector<std::string> &_civilianWords,
