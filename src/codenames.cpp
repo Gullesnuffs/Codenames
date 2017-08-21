@@ -5,6 +5,9 @@
 #include "SimilarityEngine.h"
 #include "Utilities.h"
 #include "Word2VecSimilarityEngine.h"
+#include "EdgeListSimilarityEngine.h"
+#include "MixingSimilarityEngine.h"
+#include "RandomSimilarityEngine.h"
 
 #include <algorithm>
 #include <cassert>
@@ -438,9 +441,23 @@ void benchSimilarity() {
 		cerr << "Invalid engine parameter.";
 
 	Dictionary dict;
-	Word2VecSimilarityEngine word2vecEngine(dict);
-	if (!word2vecEngine.load(engine, false))
+	auto word2vecEngine = unique_ptr<SimilarityEngine>(new Word2VecSimilarityEngine(dict));
+	if (!word2vecEngine->load(engine, false))
 		cerr << "Unable to load similarity engine.";
+
+	auto wikisaurus = unique_ptr<SimilarityEngine>(new EdgeListSimilarityEngine(dict));
+	if (!wikisaurus->load("wikisaurus_edges.txt", false))
+		cerr << "Unable to load wikisaurus similarity engine.";
+
+	auto randSimilarity = unique_ptr<SimilarityEngine>(new RandomSimilarityEngine());
+
+	MixingSimilarityEngine similarityEngine;
+	similarityEngine.engine1 = move(word2vecEngine);
+	similarityEngine.multiplier1 = 1;
+	//similarityEngine.engine2 = move(randSimilarity);
+	similarityEngine.engine2 = move(wikisaurus);
+	similarityEngine.multiplier2 = 10;
+	//cin >> similarityEngine.multiplier2;
 
 	float sumScore = 0;
 	float weight = 0;
@@ -451,7 +468,7 @@ void benchSimilarity() {
 
 		string query;
 		ss >> query;
-		if (!word2vecEngine.wordExists(query))
+		if (!similarityEngine.wordExists(query))
 			continue;
 
 		string s;
@@ -465,8 +482,8 @@ void benchSimilarity() {
 		while (ss >> s) {
 			if (s == ":") {
 				skipped = true;
-			} else if (word2vecEngine.wordExists(s)) {
-				float sim = word2vecEngine.similarity(dict.getID(query), dict.getID(s));
+			} else if (similarityEngine.wordExists(s)) {
+				float sim = similarityEngine.similarity(dict.getID(query), dict.getID(s));
 				all.push_back(make_pair(sim, nextIndex));
 				words.push_back(s);
 				if (!skipped) {
