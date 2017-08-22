@@ -443,6 +443,55 @@ void extractFeatures(string trainFileName, string testFileName) {
 	}
 }
 
+void optimizeSimilarity() {
+	string engine = "models/conceptnet.bin";
+
+	Dictionary dict;
+	auto word2vecEngine = unique_ptr<SimilarityEngine>(new Word2VecSimilarityEngine(dict));
+	if (!word2vecEngine->load(engine, false))
+		cerr << "Unable to load similarity engine.";
+
+	auto words = dict.getCommonWords(10000);
+	vector<float> totalSimilarities(words.size());
+	for (int i = 1000; i < words.size(); i++) {
+		float totalSimilarity = 0;
+		for (int j = 1000; j < words.size(); j++) {
+			if (i != j) totalSimilarity += word2vecEngine->similarity(words[j], words[i]);
+		}
+		totalSimilarities[i] = totalSimilarity;
+	}
+
+	vector<pair<float, pair<wordID, wordID>>> scores;
+	for (int i = 1000; i < words.size(); i++) {
+		vector<int> close;
+		for (int j = 1000; j < words.size(); j++) {
+			float sim = word2vecEngine->similarity(words[i], words[j]);
+			if (i != j && sim > 0.4) {
+				close.push_back(j);
+			}
+		}
+
+		//cout << "\r" << i << "/" << words.size() << ": " << close.size();
+		//cout.flush();
+
+		for (int j = 0; j < close.size(); j++) {
+			float sum = 0;
+			for (int q = 0; q < close.size(); q++) {
+				if (q != j) sum += word2vecEngine->similarity(words[close[q]], words[i]) * word2vecEngine->similarity(words[close[q]], words[close[j]]) / (totalSimilarities[i] + totalSimilarities[close[j]]);
+			}
+
+			scores.push_back(make_pair(sum / (1 + word2vecEngine->similarity(words[close[j]], words[i])), make_pair(words[i], words[close[j]])));
+		}
+	}
+
+	sort(scores.rbegin(), scores.rend());
+	for (int i = 0; i < 30000; i++) {
+		auto item = scores[i];
+		cout << '"' << dict.getWord(item.second.first) << "\" - \"" << dict.getWord(item.second.second) << "\";" << endl;
+		//cout << dict.getWord(item.second.first) << " " << dict.getWord(item.second.second) << " " << item.first << " " << word2vecEngine->similarity(item.second.second, item.second.first) << endl;
+	}
+}
+
 void benchSimilarity() {
 	string engine = "conceptnet";
 	if (engine == "glove")
@@ -734,6 +783,10 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
+	if (argc == 2 && argv[1] == string("--optimize-similarity")) {
+		optimizeSimilarity();
+		return 0;
+	}
 	if (argc == 2 && argv[1] == string("--bench-similarity")) {
 		benchSimilarity();
 		return 0;
