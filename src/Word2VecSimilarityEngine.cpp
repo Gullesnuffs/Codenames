@@ -111,7 +111,7 @@ float Word2VecSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
 	if (modelid == Models::GLOVE) {
 		return sim * wordNorms[dynWord] / 4.5f;
 	} else if (modelid == Models::CONCEPTNET) {
-		return (sim <= 0 ? sim : pow(sim, 0.8f) * 1.6f);
+		return (sim <= 0 ? sim : pow(sim, 0.66f) * 1.6f);
 	} else {
 		return sim;
 	}
