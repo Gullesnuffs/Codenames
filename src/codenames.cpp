@@ -429,16 +429,11 @@ void extractFeatures(string trainFileName, string testFileName) {
 				if(wikisaurus.wordExists(query) && wikisaurus.wordExists(s)){
 					f.wikisaurusSimilarity = wikisaurus.similarity(dict.getID(query), dict.getID(s));
 				}
+				auto& targetFile = trainSet ? trainFile : testFile;
 				for (int i = 0; i < (int)words.size(); i++) {
-					if (trainSet) {
-						features[i].writeTo(trainFile);
-						f.writeTo(trainFile);
-						trainFile << endl;
-					} else {
-						features[i].writeTo(testFile);
-						f.writeTo(testFile);
-						testFile << endl;
-					}
+					features[i].writeTo(targetFile);
+					f.writeTo(targetFile);
+					targetFile << endl;
 				}
 				if (!skipped) {
 					features.push_back(f);
