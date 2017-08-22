@@ -4,6 +4,7 @@
 #include "SimilarityEngine.h"
 
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,7 @@
 struct EdgeListSimilarityEngine final : SimilarityEngine {
    private:
    	std::map<std::pair<wordID,wordID>,float> edges;
+   	std::set<wordID> hasWord;
 
 	Dictionary &dict;
 

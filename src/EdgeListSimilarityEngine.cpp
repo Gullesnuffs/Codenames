@@ -28,15 +28,20 @@ bool EdgeListSimilarityEngine::load(const string &fileName, bool verbose) {
 		float weight;
 		fin >> a >> b >> weight;
 		if (dict.wordExists(a) && dict.wordExists(b)) {
-			edges[make_pair(dict.getID(a), dict.getID(b))] = weight;
-			edges[make_pair(dict.getID(b), dict.getID(a))] = weight;
+			auto IDa = dict.getID(a);
+			auto IDb = dict.getID(b);
+			hasWord.insert(IDa);
+			hasWord.insert(IDb);
+			edges[make_pair(IDa, IDb)] = weight;
+			edges[make_pair(IDb, IDa)] = weight;
 		}
 	}
+
 	return true;
 }
 
 bool EdgeListSimilarityEngine::wordExists(const string &word) {
-	return dict.wordExists(word);
+	return dict.wordExists(word) && hasWord.count(dict.getID(word)) != 0;
 }
 
 float EdgeListSimilarityEngine::commutativeSimilarity(wordID word1, wordID word2) {
