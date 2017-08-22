@@ -1,10 +1,7 @@
 #!/bin/bash
 results="0"
-for x in {1..10}; do
-	python3 training_tf.py /tmp/codenames/train${x}.txt /tmp/codenames/test${x}.txt /tmp/codenames/results${x}.txt > /dev/null &
-done
 
-wait
+parallel -i bash -c "python3 training_tf.py /tmp/codenames/train{}.txt /tmp/codenames/test{}.txt /tmp/codenames/results{}.txt &>/dev/null" -- {1..10}
 
 for x in {1..10}; do
 	results="$results + `cat /tmp/codenames/results${x}.txt`"
