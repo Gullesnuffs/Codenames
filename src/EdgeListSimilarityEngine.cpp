@@ -39,9 +39,13 @@ bool EdgeListSimilarityEngine::wordExists(const string &word) {
 	return dict.wordExists(word);
 }
 
-float EdgeListSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
-	auto w = edges.find(make_pair(fixedWord, dynWord));
+float EdgeListSimilarityEngine::commutativeSimilarity(wordID word1, wordID word2) {
+	auto w = edges.find(make_pair(word1, word2));
 	float noise = rand() / (float)RAND_MAX;
 	if (w != edges.end()) return w->second + noise*0.00f;
 	else return 0 + noise*0.00f;
+}
+
+float EdgeListSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
+	return commutativeSimilarity(fixedWord, dynWord);
 }

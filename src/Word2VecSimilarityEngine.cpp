@@ -102,6 +102,10 @@ bool Word2VecSimilarityEngine::wordExists(const string &word) {
 	return dict.wordExists(word) && words[dict.getID(word)].size() > 0;
 }
 
+float Word2VecSimilarityEngine::commutativeSimilarity(wordID fixedWord, wordID dynWord) {
+	return similarity(words.at(fixedWord), words.at(dynWord));
+}
+
 float Word2VecSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
 	float sim = similarity(words.at(fixedWord), words.at(dynWord));
 	if (modelid == Models::GLOVE) {

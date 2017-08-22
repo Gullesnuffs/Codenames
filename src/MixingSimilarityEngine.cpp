@@ -27,3 +27,7 @@ bool MixingSimilarityEngine::wordExists(const string &word) {
 float MixingSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
 	return engine1->similarity(fixedWord, dynWord) * multiplier1 + engine2->similarity(fixedWord, dynWord) * multiplier2;
 }
+
+float MixingSimilarityEngine::commutativeSimilarity(wordID word1, wordID word2) {
+	return engine1->commutativeSimilarity(word1, word2) * multiplier1 + engine2->commutativeSimilarity(word1, word2) * multiplier2;
+}

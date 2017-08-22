@@ -24,6 +24,10 @@ bool RandomSimilarityEngine::wordExists(const string &word) {
 	return true;
 }
 
-float RandomSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
+float RandomSimilarityEngine::commutativeSimilarity(wordID word1, wordID word2) {
 	return rand() / (float)RAND_MAX;
+}
+
+float RandomSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
+	return commutativeSimilarity(fixedWord, dynWord);
 }

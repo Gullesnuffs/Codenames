@@ -47,6 +47,7 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	/** Returns true if successful */
 	bool load(const std::string &fileName, bool verbose);
 
+	float commutativeSimilarity(wordID word1, wordID word2);
 	float similarity(wordID fixedWord, wordID dynWord);
 
 	/** True if the word2vec model includes a vector for the specified word */

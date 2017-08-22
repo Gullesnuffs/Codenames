@@ -20,6 +20,7 @@ struct RandomSimilarityEngine final : SimilarityEngine {
 	bool load(const std::string &fileName, bool verbose);
 
 	float similarity(wordID fixedWord, wordID dynWord);
+	float commutativeSimilarity(wordID word1, wordID word2);
 
 	/** True if the word2vec model includes a vector for the specified word */
 	bool wordExists(const std::string &word);
