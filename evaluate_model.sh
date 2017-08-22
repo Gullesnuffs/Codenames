@@ -1,8 +1,12 @@
 #!/bin/bash
 results="0"
-for x in {1..10}
-do
-	python3 training_tf.py train${x}.txt test${x}.txt results${x}.txt > /dev/null
+for x in {1..10}; do
+	python3 training_tf.py train${x}.txt test${x}.txt results${x}.txt > /dev/null &
+done
+
+wait
+
+for x in {1..10}; do
 	results="$results + `cat results${x}.txt`"
 	echo "Objective function: `echo $results | bc`"
 done
