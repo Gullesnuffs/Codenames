@@ -339,20 +339,19 @@ struct Feature {
 	double clueGloveNorm;
 	vector<float> clueGloveVector;
 	double wikisaurusSimilarity;
+	vector<float> additionalParams;
 
 	void writeTo(ofstream &fout) {
-		fout << conceptnetSimilarity << " ";
 		fout << conceptnetNorm << " ";
-		fout << gloveSimilarity << " ";
 		fout << gloveNorm << " ";
-		fout << wikisaurusSimilarity << " ";
 		fout << clueGloveNorm << " ";
-		for (auto x : conceptnetVector)
-			fout << x << " ";
+		for (auto p : additionalParams) fout << p << " ";
+		//for (auto x : conceptnetVector)
+		//	fout << x << " ";
 		/*for(auto x : gloveVector)
 			fout << x << " ";*/
-		for (auto x : clueConceptnetVector)
-			fout << x << " ";
+		//for (auto x : clueConceptnetVector)
+		//	fout << x << " ";
 		/*for(auto x : clueGloveVector)
 			fout << x << " ";*/
 	}
@@ -382,6 +381,12 @@ void extractFeatures(string trainFileName, string testFileName) {
 	EdgeListSimilarityEngine wikisaurus(dict);
 	if (!wikisaurus.load("generated_data/wikisaurus_edges.txt", false))
 		cerr << "Unable to load wikisaurus similarity engine.";
+
+	EdgeListSimilarityEngine cluster(dict);
+	if (!cluster.load("generated_data/cluster_edges.txt", false))
+		cerr << "Unable to load cluster similarity engine.";
+
+	RandomSimilarityEngine randSimilarity;
 
 	ofstream trainFile;
 	ofstream testFile;
@@ -416,20 +421,21 @@ void extractFeatures(string trainFileName, string testFileName) {
 			} else if (conceptnetEngine.wordExists(s) && gloveEngine.wordExists(s)) {
 				wordID wordID = dict.getID(query);
 				Feature f;
-				f.conceptnetSimilarity = conceptnetEngine.similarity(dict.getID(query), dict.getID(s));
 				f.conceptnetNorm = conceptnetEngine.stat(wordID);
 				f.conceptnetVector = conceptnetEngine.getVector(wordID);
 				f.clueConceptnetVector = conceptnetEngine.getVector(queryID);
-				f.gloveSimilarity = gloveEngine.similarity(queryID, wordID);
+				
 				f.gloveNorm = gloveEngine.stat(wordID);
 				f.gloveVector = gloveEngine.getVector(wordID);
 				f.clueGloveNorm = gloveEngine.stat(queryID);
 				f.clueGloveVector = gloveEngine.getVector(queryID);
 				
-				f.wikisaurusSimilarity = 0;
-				if(wikisaurus.wordExists(query) && wikisaurus.wordExists(s)){
-					f.wikisaurusSimilarity = wikisaurus.similarity(queryID, wordID);
-				}
+				f.additionalParams.push_back(conceptnetEngine.similarity(dict.getID(query), dict.getID(s)));
+				f.additionalParams.push_back(gloveEngine.similarity(queryID, wordID));
+				f.additionalParams.push_back(wikisaurus.similarity(queryID, wordID));
+				f.additionalParams.push_back(cluster.similarity(queryID, wordID));
+				f.additionalParams.push_back(randSimilarity.similarity(queryID, wordID));
+
 				auto& targetFile = trainSet ? trainFile : testFile;
 				for (auto& feature : features) {
 					feature.writeTo(targetFile);

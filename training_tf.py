@@ -15,42 +15,42 @@ dim = trainSamples.shape[1] // 2
 
 class Feature:
   def __init__(self, data):
-    self.conceptnet = data[:, 0:1]
-    self.glove = data[:, 2:3]
-    self.gloveNorm = data[:, 3:4]
-    self.wikisaurus = data[:, 4:5]
-    self.clueGloveNorm = data[:, 5:6]
+    self.conceptnetNorm = data[:, 0:1]
+    self.gloveNorm = data[:, 1:2]
+    self.clueGloveNorm = data[:, 2:3]
+    self.similarities = data[:, 3:data.shape[1]]
 
 
 train1 = Feature(trainSamples[:, 0:dim])
 train2 = Feature(trainSamples[:, dim:(dim * 2)])
 test1 = Feature(testSamples[:, 0:dim])
 test2 = Feature(testSamples[:, dim:(dim * 2)])
+numSimilarities = train1.similarities.shape[1]
 
 clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
 
 
 class Model:
-  def __init__(self, clueNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff):
-    self.conceptnet = tf.placeholder(tf.float32, [None, 1])
-    self.glove = tf.placeholder(tf.float32, [None, 1])
+  def __init__(self, clueNorm, similarityWeights, deviationBase, deviationNormCoeff):
+    self.similarities = tf.placeholder(tf.float32, [None, similarityWeights.shape[0]])
     self.gloveNorm = tf.placeholder(tf.float32, [None, 1])
-    self.wikisaurus = tf.placeholder(tf.float32, [None, 1])
-    self.score = self.conceptnet + self.wikisaurus * wikisaurusWeight + self.glove * gloveWeight
+    # This is essentially a dot product between the similarities and the similarity weights
+    # Each similarity should be multiplied by its corresponding weight
+    self.score = tf.reduce_sum(tf.multiply(self.similarities, similarityWeights), axis=1, keep_dims=True)
     # Standard deviation for the score
     self.dev = tf.exp(deviationBase + deviationNormCoeff / self.gloveNorm + deviationClueNormCoeff / clueNorm)
 
 
 clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
 
-wikisaurusWeight = tf.Variable(0.00)
+similarityWeights = tf.get_variable("similarity_weights", [numSimilarities], dtype=tf.float32)
 gloveWeight = tf.Variable(0.00)
 deviationBase = tf.Variable(0.2)
 deviationNormCoeff = tf.Variable(0.0)
 deviationClueNormCoeff = tf.Variable(0.0)
 
-model1 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff)
-model2 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff)
+model1 = Model(clueGloveNorm, similarityWeights, deviationBase, deviationNormCoeff)
+model2 = Model(clueGloveNorm, similarityWeights, deviationBase, deviationNormCoeff)
 
 scoreDiff = model1.score - model2.score
 
@@ -65,7 +65,10 @@ y = (tf.erf(scoreDiff / stddev) + 1.0) / 2.0
 
 cross_entropy = tf.reduce_mean(-tf.log(y))
 
-train_step = tf.train.AdamOptimizer(0.1).minimize(cross_entropy)
+# Keep the first similarity weight at a constant 1
+loss = cross_entropy + tf.square(1 - similarityWeights[0])
+
+train_step = tf.train.AdamOptimizer(0.1).minimize(loss)
 
 sess = tf.InteractiveSession()
 
@@ -73,34 +76,29 @@ tf.global_variables_initializer().run()
 
 
 def constructFeedDict(model1, feature1, model2, feature2):
-  return {model1.conceptnet: feature1.conceptnet,
-          model2.conceptnet: feature2.conceptnet,
-          model1.glove: feature1.glove,
-          model2.glove: feature2.glove,
+  return {model1.similarities: feature1.similarities,
+          model2.similarities: feature2.similarities,
           model1.gloveNorm: feature1.gloveNorm,
           model2.gloveNorm: feature2.gloveNorm,
-          model1.wikisaurus: feature1.wikisaurus,
-          model2.wikisaurus: feature2.wikisaurus,
           clueGloveNorm: feature1.clueGloveNorm
           }
 
 
-for _ in range(1000):
+for i in range(1000):
   sess.run(train_step, feed_dict=constructFeedDict(model1, train1, model2, train2))
-  res = sess.run([cross_entropy, gloveWeight, wikisaurusWeight, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict=constructFeedDict(model1, test1, model2, test2))
+  res = sess.run([cross_entropy, similarityWeights, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict=constructFeedDict(model1, test1, model2, test2))
   lastAns = res[0]
   # print(str(lastAns))
-  out_gloveWeight = res[1]
-  out_wikisaurusWeight = res[2]
-  out_deviationBase = res[3]
-  out_deviationNormCoeff = res[4]
-  out_deviationClueNormCoeff = res[5]
+  out_similarityWeights = res[1]
+  out_deviationBase = res[2]
+  out_deviationNormCoeff = res[3]
+  out_deviationClueNormCoeff = res[4]
 
-print("Glove weight = " + str(out_gloveWeight))
-print("Wikisaurus weight = " + str(out_wikisaurusWeight))
+print("Similarity Weights = " + str(out_similarityWeights))
 print("deviationBase = " + str(out_deviationBase))
 print("deviationNormCoeff = " + str(out_deviationNormCoeff))
 print("deviationClueNormCoeff = " + str(out_deviationClueNormCoeff))
+print("cross entropy = " + str(lastAns))
 
 if len(sys.argv) >= 4:
   f = open(sys.argv[3], 'w')
