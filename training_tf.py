@@ -31,12 +31,13 @@ clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
 
 
 class Model:
-  def __init__(self, clueNorm, wikisaurusWeight, gloveWeight):
+  def __init__(self, clueNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff):
     self.conceptnet = tf.placeholder(tf.float32, [None, 1])
     self.glove = tf.placeholder(tf.float32, [None, 1])
     self.gloveNorm = tf.placeholder(tf.float32, [None, 1])
     self.wikisaurus = tf.placeholder(tf.float32, [None, 1])
     self.score = self.conceptnet + self.wikisaurus * wikisaurusWeight + self.glove * gloveWeight
+    self.dev = tf.exp(deviationBase + deviationNormCoeff / self.gloveNorm + deviationClueNormCoeff / clueNorm)
 
 
 clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
@@ -47,15 +48,12 @@ deviationBase = tf.Variable(0.2)
 deviationNormCoeff = tf.Variable(0.0)
 deviationClueNormCoeff = tf.Variable(0.0)
 
-model1 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight)
-model2 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight)
+model1 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff)
+model2 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff)
 
 simDiff = model1.score - model2.score
 
-dev1 = tf.exp(deviationBase + deviationNormCoeff / model1.gloveNorm + deviationClueNormCoeff / clueGloveNorm)
-dev2 = tf.exp(deviationBase + deviationNormCoeff / model2.gloveNorm + deviationClueNormCoeff / clueGloveNorm)
-
-stddev = tf.sqrt(tf.square(dev1) + tf.square(dev2))
+stddev = tf.sqrt(tf.square(model1.dev) + tf.square(model2.dev))
 
 y = (tf.erf(simDiff / stddev) + 1.0) / 2.0
 
