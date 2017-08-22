@@ -7,7 +7,7 @@ done
 wait
 
 for x in {1..10}; do
-	results="$results + `cat /tmp/results${x}.txt`"
+	results="$results + `cat /tmp/codenames/results${x}.txt`"
 	echo "Objective function: `echo $results | bc`"
 done
 echo "Objective function: `echo $results | bc`"
