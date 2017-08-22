@@ -37,6 +37,7 @@ class Model:
     self.gloveNorm = tf.placeholder(tf.float32, [None, 1])
     self.wikisaurus = tf.placeholder(tf.float32, [None, 1])
     self.score = self.conceptnet + self.wikisaurus * wikisaurusWeight + self.glove * gloveWeight
+    # Standard deviation for the score
     self.dev = tf.exp(deviationBase + deviationNormCoeff / self.gloveNorm + deviationClueNormCoeff / clueNorm)
 
 
@@ -51,11 +52,16 @@ deviationClueNormCoeff = tf.Variable(0.0)
 model1 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff)
 model2 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight, deviationBase, deviationNormCoeff)
 
-simDiff = model1.score - model2.score
+scoreDiff = model1.score - model2.score
 
+# Standard deviation fof the difference of the scores (scoreDiff).
+# If the standard deviation would be zero we would always pick the word with the highest score.
 stddev = tf.sqrt(tf.square(model1.dev) + tf.square(model2.dev))
 
-y = (tf.erf(simDiff / stddev) + 1.0) / 2.0
+# Calculate the probability that we will pick the first word before the second word.
+# In the test data the first word is the "correct" word (i.e the one a human picked first).
+# We want to maximize this value
+y = (tf.erf(scoreDiff / stddev) + 1.0) / 2.0
 
 cross_entropy = tf.reduce_mean(-tf.log(y))
 
