@@ -358,6 +358,17 @@ struct Feature {
 	}
 };
 
+
+// From https://rosettacode.org/wiki/Linear_congruential_generator#C.2B.2B
+int randConstantA = 1103515245;
+int randConstantC = 12345;
+unsigned int randConstantM = 2147483648;
+unsigned int randSeed = 0;
+int deterministicRand() {
+	randSeed = ( randConstantA * randSeed + randConstantC ) % randConstantM;
+	return randSeed;
+}
+
 void extractFeatures(string trainFileName, string testFileName) {
 	Dictionary dict;
 	Word2VecSimilarityEngine conceptnetEngine(dict);
@@ -381,7 +392,7 @@ void extractFeatures(string trainFileName, string testFileName) {
 
 	string line;
 	while (getline(cin, line)) {
-		bool trainSet = (rand() % 10 < 8);  // Use 80% of data for training
+		bool trainSet = (deterministicRand() % 10 < 8);  // Use 80% of data for training
 		if (testFileName == "")
 			trainSet = true;
 		stringstream ss(line);
@@ -796,6 +807,7 @@ int main(int argc, char **argv) {
 		string trainingFile = argv[2];
 		string testFile = argc >= 4 ? argv[3] : "";
 		if (argc >= 5) {
+			randSeed = atoi(argv[4]);
 			srand(atoi(argv[4]));
 		}
 		extractFeatures(trainingFile, testFile);
