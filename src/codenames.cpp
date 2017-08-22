@@ -419,7 +419,7 @@ void extractFeatures(string trainFileName, string testFileName) {
 			if (s == ":") {
 				skipped = true;
 			} else if (conceptnetEngine.wordExists(s) && gloveEngine.wordExists(s)) {
-				wordID wordID = dict.getID(query);
+				wordID wordID = dict.getID(s);
 				Feature f;
 				f.conceptnetNorm = conceptnetEngine.stat(wordID);
 				f.conceptnetVector = conceptnetEngine.getVector(wordID);
@@ -430,7 +430,7 @@ void extractFeatures(string trainFileName, string testFileName) {
 				f.clueGloveNorm = gloveEngine.stat(queryID);
 				f.clueGloveVector = gloveEngine.getVector(queryID);
 				
-				f.additionalParams.push_back(conceptnetEngine.similarity(dict.getID(query), dict.getID(s)));
+				f.additionalParams.push_back(conceptnetEngine.similarity(queryID, wordID));
 				f.additionalParams.push_back(gloveEngine.similarity(queryID, wordID));
 				f.additionalParams.push_back(wikisaurus.similarity(queryID, wordID));
 				f.additionalParams.push_back(cluster.similarity(queryID, wordID));
