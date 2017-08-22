@@ -402,6 +402,7 @@ void extractFeatures(string trainFileName, string testFileName) {
 		if (!conceptnetEngine.wordExists(query) || !gloveEngine.wordExists(query))
 			continue;
 
+		wordID queryID = dict.getID(query);
 		string s;
 		ss >> s;
 		assert(s == ":");
@@ -413,25 +414,25 @@ void extractFeatures(string trainFileName, string testFileName) {
 			if (s == ":") {
 				skipped = true;
 			} else if (conceptnetEngine.wordExists(s) && gloveEngine.wordExists(s)) {
+				wordID wordID = dict.getID(query);
 				Feature f;
-				f.conceptnetSimilarity =
-					conceptnetEngine.similarity(dict.getID(query), dict.getID(s));
-				f.conceptnetNorm = conceptnetEngine.stat(dict.getID(s));
-				f.conceptnetVector = conceptnetEngine.getVector(dict.getID(s));
-				f.clueConceptnetVector = conceptnetEngine.getVector(dict.getID(query));
-				f.gloveSimilarity = gloveEngine.similarity(dict.getID(query), dict.getID(s));
-				f.gloveNorm = gloveEngine.stat(dict.getID(s));
-				f.gloveVector = gloveEngine.getVector(dict.getID(s));
-				f.clueGloveNorm = gloveEngine.stat(dict.getID(query));
-				f.clueGloveVector = gloveEngine.getVector(dict.getID(query));
+				f.conceptnetSimilarity = conceptnetEngine.similarity(dict.getID(query), dict.getID(s));
+				f.conceptnetNorm = conceptnetEngine.stat(wordID);
+				f.conceptnetVector = conceptnetEngine.getVector(wordID);
+				f.clueConceptnetVector = conceptnetEngine.getVector(queryID);
+				f.gloveSimilarity = gloveEngine.similarity(queryID, wordID);
+				f.gloveNorm = gloveEngine.stat(wordID);
+				f.gloveVector = gloveEngine.getVector(wordID);
+				f.clueGloveNorm = gloveEngine.stat(queryID);
+				f.clueGloveVector = gloveEngine.getVector(queryID);
 				
 				f.wikisaurusSimilarity = 0;
 				if(wikisaurus.wordExists(query) && wikisaurus.wordExists(s)){
-					f.wikisaurusSimilarity = wikisaurus.similarity(dict.getID(query), dict.getID(s));
+					f.wikisaurusSimilarity = wikisaurus.similarity(queryID, wordID);
 				}
 				auto& targetFile = trainSet ? trainFile : testFile;
-				for (int i = 0; i < (int)words.size(); i++) {
-					features[i].writeTo(targetFile);
+				for (auto& feature : features) {
+					feature.writeTo(targetFile);
 					f.writeTo(targetFile);
 					targetFile << endl;
 				}
