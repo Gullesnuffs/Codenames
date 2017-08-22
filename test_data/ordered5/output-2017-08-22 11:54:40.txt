@@ -1,0 +1,14 @@
+crash	:	plane	death	sound	bug	thief		:	
+group	:	band	club	board	circle	cricket		:	
+security	:	bank	key	server	bond	spy		:	
+crack	:	hole	part	key	slip		:	soul	
+security	:	net	capital	bond	embassy	plastic		:	
+drink	:	bottle	bar	glass	mug	nurse		:	
+moment	:	time	point	day	satellite	berlin		:	
+pet	:	dog	bear	pirate	litter		:	germany	
+large	:	giant	mammoth	dwarf	pound		:	pool	
+jail	:	cell	bar	hole	lab		:	pie	
+rush	:	fly	pass	wake	compound		:	draft	
+sing	:	concert	piano	play	pan		:	belt	
+fresh	:	new	green	cold	lemon	carrot		:	
+grass	:	ground	field	forest	fence		:	note	

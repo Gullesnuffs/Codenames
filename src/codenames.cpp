@@ -562,6 +562,11 @@ void serverMain() {
 	Word2VecSimilarityEngine word2vecEngine(dict);
 	if (!word2vecEngine.load(engine, false))
 		cerr << "Unable to load similarity engine.";
+	
+	EdgeListSimilarityEngine wikisaurus(dict);
+	if (!wikisaurus.load("generated_data/wikisaurus_edges.txt", false))
+		cerr << "Unable to load wikisaurus similarity engine.";
+
 
 	InappropriateEngine inappropriateEngine("inappropriate.txt", dict);
 
@@ -588,6 +593,19 @@ void serverMain() {
 
 	while (true) {
 		string query = dict.getWord(words[rand() % words.size()]);
+		
+		// Reject most words without wikisaurus links
+		if(rand()%5){
+			bool hasWikisaurusLink = false;
+			for (auto w : wordList) {
+				float similarity = wikisaurus.similarity(dict.getID(query), dict.getID(w));
+				if(similarity) {
+					hasWikisaurusLink = true;
+				}
+			}
+			if(!hasWikisaurusLink)
+				continue;
+		}
 		vector<string> subset;
 		for (int i = 0; i < 5; i++) {
 			// Range from -0.2 to 1.2
@@ -607,6 +625,26 @@ void serverMain() {
 						bestWord = w;
 					}
 				}
+			}
+			
+			// Sample a random word which has a wikisaurus edge to the query
+			if (rand()%5 == 0){
+				vector<string> wordsWithEdges;
+				for (auto w : wordList) {
+					float similarity = wikisaurus.similarity(dict.getID(query), dict.getID(w));
+					if(similarity) {
+						wordsWithEdges.push_back(w);
+					}
+				}
+				if(wordsWithEdges.size()) {
+					bestWord = wordsWithEdges[rand()%wordsWithEdges.size()];
+				}
+			}
+
+			// If word already in list, then retry.
+			if (find(subset.begin(), subset.end(), bestWord) != subset.end() || bestWord == query){
+				--i;
+				continue;
 			}
 
 			subset.push_back(bestWord);

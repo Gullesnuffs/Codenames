@@ -1,0 +1,13 @@
+quarter	:	cycle	pass		:	shoe	calf	lead	
+acid	:	lemon	poison	compound		:	princess	hawk	
+pipe	:	tube	flute	hole	bolt	tick		:	
+officer	:	soldier	doctor	roulette	diver		:	cotton	
+old	:	new	kid	back	school		:	foot	
+tissue	:	paper	cell	heart	needle		:	marble	
+temple	:	church	star		:	plate	phoenix	africa	
+break	:	fall	strike	tie		:	hood	octopus	
+moment	:	time	point	spot	wake	night		:	
+tongue	:	mouth	hand	spine	bark		:	code	
+kill	:	dice	ice	tick	cap		:	link	
+young	:	new		:	contract	horn	mine	code	
+error	:	crash	file	grace	carrot		:	shoe	

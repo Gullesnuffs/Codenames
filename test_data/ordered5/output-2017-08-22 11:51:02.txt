@@ -1,0 +1,4 @@
+throw	:	ball	shot	beat	cover		:	alps	
+change	:	new	alien	fall		:	drop	water	
+shoulder	:	arm	calf	play	wall		:	missile	
+governor	:	ruler	board	net		:	lion	snowman	

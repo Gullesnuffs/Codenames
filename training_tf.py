@@ -34,7 +34,7 @@ conceptnet2 = tf.placeholder(tf.float32, [None, 1])
 wikisaurus1 = tf.placeholder(tf.float32, [None, 1])
 wikisaurus2 = tf.placeholder(tf.float32, [None, 1])
 
-wikisaurusWeight = tf.constant(0.05)
+wikisaurusWeight = tf.Variable(0.00)
 
 score1 = conceptnet1 + wikisaurus1 * wikisaurusWeight
 score2 = conceptnet2 + wikisaurus2 * wikisaurusWeight
