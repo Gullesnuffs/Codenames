@@ -8,47 +8,37 @@ if len(sys.argv) < 3 or len(sys.argv) > 4:
 
 # Parse samples
 trainSamples = np.loadtxt(sys.argv[1], ndmin=2)
-
 testSamples = np.loadtxt(sys.argv[2], ndmin=2)
 
-dim = trainSamples.shape[1]//2
+dim = trainSamples.shape[1] // 2
 
-trainSamples1 = trainSamples[:, 0:dim]
-trainConceptnet1 = trainSamples1[:, 0:1]
-trainGlove1 = trainSamples1[:, 2:3]
-trainGloveNorm1 = trainSamples1[:, 3:4]
-trainWikisaurus1 = trainSamples1[:, 4:5]
 
-trainSamples2 = trainSamples[:, dim:(dim*2)]
-trainConceptnet2 = trainSamples2[:, 0:1]
-trainGlove2 = trainSamples2[:, 2:3]
-trainGloveNorm2 = trainSamples2[:, 3:4]
-trainWikisaurus2 = trainSamples2[:, 4:5]
+class Feature:
+  def __init__(self, data):
+    self.conceptnet = data[:, 0:1]
+    self.glove = data[:, 2:3]
+    self.gloveNorm = data[:, 3:4]
+    self.wikisaurus = data[:, 4:5]
+    self.clueGloveNorm = data[:, 5:6]
 
-trainClueGloveNorm = trainSamples1[:, 5:6]
 
-testSamples1 = testSamples[:, 0:dim]
-testConceptnet1 = testSamples1[:, 0:1]
-testGlove1 = testSamples1[:, 2:3]
-testGloveNorm1 = testSamples1[:, 3:4]
-testWikisaurus1 = testSamples1[:, 4:5]
+train1 = Feature(trainSamples[:, 0:dim])
+train2 = Feature(trainSamples[:, dim:(dim * 2)])
+test1 = Feature(testSamples[:, 0:dim])
+test2 = Feature(testSamples[:, dim:(dim * 2)])
 
-testSamples2 = testSamples[:, dim:(dim*2)]
-testConceptnet2 = testSamples2[:, 0:1]
-testGlove2 = testSamples2[:, 2:3]
-testGloveNorm2 = testSamples2[:, 3:4]
-testWikisaurus2 = testSamples2[:, 4:5]
+clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
 
-testClueGloveNorm = testSamples1[:, 5:6]
 
-conceptnet1 = tf.placeholder(tf.float32, [None, 1])
-conceptnet2 = tf.placeholder(tf.float32, [None, 1])
-glove1 = tf.placeholder(tf.float32, [None, 1])
-glove2 = tf.placeholder(tf.float32, [None, 1])
-gloveNorm1 = tf.placeholder(tf.float32, [None, 1])
-gloveNorm2 = tf.placeholder(tf.float32, [None, 1])
-wikisaurus1 = tf.placeholder(tf.float32, [None, 1])
-wikisaurus2 = tf.placeholder(tf.float32, [None, 1])
+class Model:
+  def __init__(self, clueNorm, wikisaurusWeight, gloveWeight):
+    self.conceptnet = tf.placeholder(tf.float32, [None, 1])
+    self.glove = tf.placeholder(tf.float32, [None, 1])
+    self.gloveNorm = tf.placeholder(tf.float32, [None, 1])
+    self.wikisaurus = tf.placeholder(tf.float32, [None, 1])
+    self.score = self.conceptnet + self.wikisaurus * wikisaurusWeight + self.glove * gloveWeight
+
+
 clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
 
 wikisaurusWeight = tf.Variable(0.00)
@@ -57,17 +47,17 @@ deviationBase = tf.Variable(0.2)
 deviationNormCoeff = tf.Variable(0.0)
 deviationClueNormCoeff = tf.Variable(0.0)
 
-score1 = conceptnet1 + wikisaurus1 * wikisaurusWeight + glove1 * gloveWeight
-score2 = conceptnet2 + wikisaurus2 * wikisaurusWeight + glove2 * gloveWeight
+model1 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight)
+model2 = Model(clueGloveNorm, wikisaurusWeight, gloveWeight)
 
-simDiff = score1 - score2
+simDiff = model1.score - model2.score
 
-dev1 = tf.exp(deviationBase + deviationNormCoeff / gloveNorm1 + deviationClueNormCoeff / clueGloveNorm)
-dev2 = tf.exp(deviationBase + deviationNormCoeff / gloveNorm2 + deviationClueNormCoeff / clueGloveNorm)
+dev1 = tf.exp(deviationBase + deviationNormCoeff / model1.gloveNorm + deviationClueNormCoeff / clueGloveNorm)
+dev2 = tf.exp(deviationBase + deviationNormCoeff / model2.gloveNorm + deviationClueNormCoeff / clueGloveNorm)
 
-stddev = tf.sqrt(tf.square(dev1)+tf.square(dev2))
+stddev = tf.sqrt(tf.square(dev1) + tf.square(dev2))
 
-y = (tf.erf(simDiff / stddev)+1.0)/2.0
+y = (tf.erf(simDiff / stddev) + 1.0) / 2.0
 
 cross_entropy = tf.reduce_mean(-tf.log(y))
 
@@ -77,11 +67,25 @@ sess = tf.InteractiveSession()
 
 tf.global_variables_initializer().run()
 
+
+def constructFeedDict(model1, feature1, model2, feature2):
+  return {model1.conceptnet: feature1.conceptnet,
+          model2.conceptnet: feature2.conceptnet,
+          model1.glove: feature1.glove,
+          model2.glove: feature2.glove,
+          model1.gloveNorm: feature1.gloveNorm,
+          model2.gloveNorm: feature2.gloveNorm,
+          model1.wikisaurus: feature1.wikisaurus,
+          model2.wikisaurus: feature2.wikisaurus,
+          clueGloveNorm: feature1.clueGloveNorm
+          }
+
+
 for _ in range(1000):
-  sess.run(train_step, feed_dict={conceptnet1: trainConceptnet1, conceptnet2: trainConceptnet2, glove1: trainGlove1, glove2: trainGlove2, gloveNorm1: trainGloveNorm1, gloveNorm2: trainGloveNorm2, wikisaurus1: trainWikisaurus1, wikisaurus2: trainWikisaurus2, clueGloveNorm: trainClueGloveNorm})
-  res = sess.run([cross_entropy, gloveWeight, wikisaurusWeight, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict={conceptnet1: testConceptnet1, conceptnet2: testConceptnet2, glove1: testGlove1, glove2: testGlove2, gloveNorm1: testGloveNorm1, gloveNorm2: testGloveNorm2, wikisaurus1: testWikisaurus1, wikisaurus2: testWikisaurus2, clueGloveNorm: testClueGloveNorm})
+  sess.run(train_step, feed_dict=constructFeedDict(model1, train1, model2, train2))
+  res = sess.run([cross_entropy, gloveWeight, wikisaurusWeight, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict=constructFeedDict(model1, test1, model2, test2))
   lastAns = res[0]
-  #print(str(lastAns))
+  # print(str(lastAns))
   out_gloveWeight = res[1]
   out_wikisaurusWeight = res[2]
   out_deviationBase = res[3]
