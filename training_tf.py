@@ -102,6 +102,6 @@ print("cross entropy = " + str(lastAns))
 
 if len(sys.argv) >= 4:
   f = open(sys.argv[3], 'w')
-  f.write(str(lastAns))
+  f.write("{0:.10f}".format(lastAns))
   f.close()
   sys.exit()
