@@ -4,5 +4,6 @@ for x in {1..10}
 do
 	python3 training_tf.py train${x}.txt test${x}.txt results${x}.txt > /dev/null
 	results="$results + `cat results${x}.txt`"
+	echo "Objective function: `echo $results | bc`"
 done
 echo "Objective function: `echo $results | bc`"

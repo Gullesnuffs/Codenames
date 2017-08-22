@@ -336,6 +336,7 @@ struct Feature {
 	double gloveSimilarity;
 	double gloveNorm;
 	vector<float> gloveVector;
+	double clueGloveNorm;
 	vector<float> clueGloveVector;
 	double wikisaurusSimilarity;
 
@@ -345,6 +346,7 @@ struct Feature {
 		fout << gloveSimilarity << " ";
 		fout << gloveNorm << " ";
 		fout << wikisaurusSimilarity << " ";
+		fout << clueGloveNorm << " ";
 		for (auto x : conceptnetVector)
 			fout << x << " ";
 		/*for(auto x : gloveVector)
@@ -409,14 +411,12 @@ void extractFeatures(string trainFileName, string testFileName) {
 				f.gloveSimilarity = gloveEngine.similarity(dict.getID(query), dict.getID(s));
 				f.gloveNorm = gloveEngine.stat(dict.getID(s));
 				f.gloveVector = gloveEngine.getVector(dict.getID(s));
+				f.clueGloveNorm = gloveEngine.stat(dict.getID(query));
 				f.clueGloveVector = gloveEngine.getVector(dict.getID(query));
 				
 				f.wikisaurusSimilarity = 0;
 				if(wikisaurus.wordExists(query) && wikisaurus.wordExists(s)){
 					f.wikisaurusSimilarity = wikisaurus.similarity(dict.getID(query), dict.getID(s));
-				}
-				if(f.wikisaurusSimilarity){
-					cerr << query << " " << s << " " << f.wikisaurusSimilarity << " " << f.conceptnetSimilarity << endl;
 				}
 				for (int i = 0; i < (int)words.size(); i++) {
 					if (trainSet) {
@@ -470,7 +470,7 @@ void benchSimilarity() {
 	similarityEngine.multiplier1 = 1;
 	//similarityEngine.engine2 = move(randSimilarity);
 	similarityEngine.engine2 = move(wikisaurus);
-	similarityEngine.multiplier2 = 10;
+	similarityEngine.multiplier2 = 0.0;
 	//cin >> similarityEngine.multiplier2;
 
 	float sumScore = 0;
