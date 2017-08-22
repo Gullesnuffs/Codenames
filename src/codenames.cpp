@@ -337,12 +337,14 @@ struct Feature {
 	double gloveNorm;
 	vector<float> gloveVector;
 	vector<float> clueGloveVector;
+	double wikisaurusSimilarity;
 
 	void writeTo(ofstream &fout) {
 		fout << conceptnetSimilarity << " ";
 		fout << conceptnetNorm << " ";
 		fout << gloveSimilarity << " ";
 		fout << gloveNorm << " ";
+		fout << wikisaurusSimilarity << " ";
 		for (auto x : conceptnetVector)
 			fout << x << " ";
 		/*for(auto x : gloveVector)
@@ -363,6 +365,10 @@ void extractFeatures(string trainFileName, string testFileName) {
 	Word2VecSimilarityEngine gloveEngine(dict);
 	if (!gloveEngine.load("models/glove.840B.330d.bin", false))
 		cerr << "Unable to load similarity engine.";
+
+	EdgeListSimilarityEngine wikisaurus(dict);
+	if (!wikisaurus.load("generated_data/wikisaurus_edges.txt", false))
+		cerr << "Unable to load wikisaurus similarity engine.";
 
 	ofstream trainFile;
 	ofstream testFile;
@@ -404,6 +410,14 @@ void extractFeatures(string trainFileName, string testFileName) {
 				f.gloveNorm = gloveEngine.stat(dict.getID(s));
 				f.gloveVector = gloveEngine.getVector(dict.getID(s));
 				f.clueGloveVector = gloveEngine.getVector(dict.getID(query));
+				
+				f.wikisaurusSimilarity = 0;
+				if(wikisaurus.wordExists(query) && wikisaurus.wordExists(s)){
+					f.wikisaurusSimilarity = wikisaurus.similarity(dict.getID(query), dict.getID(s));
+				}
+				if(f.wikisaurusSimilarity){
+					cerr << query << " " << s << " " << f.wikisaurusSimilarity << " " << f.conceptnetSimilarity << endl;
+				}
 				for (int i = 0; i < (int)words.size(); i++) {
 					if (trainSet) {
 						features[i].writeTo(trainFile);
@@ -446,7 +460,7 @@ void benchSimilarity() {
 		cerr << "Unable to load similarity engine.";
 
 	auto wikisaurus = unique_ptr<SimilarityEngine>(new EdgeListSimilarityEngine(dict));
-	if (!wikisaurus->load("wikisaurus_edges.txt", false))
+	if (!wikisaurus->load("generated_data/wikisaurus_edges.txt", false))
 		cerr << "Unable to load wikisaurus similarity engine.";
 
 	auto randSimilarity = unique_ptr<SimilarityEngine>(new RandomSimilarityEngine());

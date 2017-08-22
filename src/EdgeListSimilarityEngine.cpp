@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <memory>
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define all(v) (v).begin(), (v).end()
@@ -41,6 +42,6 @@ bool EdgeListSimilarityEngine::wordExists(const string &word) {
 float EdgeListSimilarityEngine::similarity(wordID fixedWord, wordID dynWord) {
 	auto w = edges.find(make_pair(fixedWord, dynWord));
 	float noise = rand() / (float)RAND_MAX;
-	if (w != edges.end()) return w->second + noise*0.01f;
-	else return 0 + noise*0.01f;
+	if (w != edges.end()) return w->second + noise*0.00f;
+	else return 0 + noise*0.00f;
 }
