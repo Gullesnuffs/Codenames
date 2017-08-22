@@ -78,7 +78,8 @@ float ProbabilityBot::getProbabilityScore(wordID word, int number) {
 
 	for (int i = 0; i < simulations; i++) {
 		for (int j = 0; j < boardWords.size(); j++) {
-			remaining[j] = score[j] >= distribution01(generator);
+			double p = (2-score[j]) * score[j] + 0.05;
+			remaining[j] = p >= distribution01(generator);
 			//remaining[j] = true;
 		}
 		//cerr << "Simulation " << (i+1) << endl;

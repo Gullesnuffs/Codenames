@@ -48,7 +48,7 @@ for _ in range(1000):
   lastAns = res[0]
   stddev = 1.0/res[1]
 
-print("Standard deviation: " + str(stddev))
+print("Standard deviation: " + str(stddev/2))
 
 if len(sys.argv) >= 4:
   f = open(sys.argv[3], 'w')
