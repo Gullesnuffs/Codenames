@@ -38,7 +38,7 @@ struct Word2VecSimilarityEngine final : SimilarityEngine {
 	/** Arbitrary statistic, in this case the word norm. */
 	float stat(wordID s);
 
-	std::vector<float> getVector(wordID s);
+	const std::vector<float>& getVector(wordID s);
 
 	inline float getNorm(wordID s) {
 		return wordNorms[(int)s];

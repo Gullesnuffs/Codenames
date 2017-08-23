@@ -121,6 +121,14 @@ void printWithColor(string c, Color col) {
 		 << "\x1b[0m";
 }
 
+float calcNorm(const vector<float>& vec) {
+	float ret = 0;
+	trav(x, vec) {
+		ret += x * x;
+	}
+	return sqrt(ret);
+}
+
 int main() {
 	Dictionary dict;
 	Word2VecSimilarityEngine engine(dict);
@@ -136,6 +144,40 @@ int main() {
 			continue;
 		vector<float> vec;
 		size_t i = line.find('*');
+		if (!line.empty() && line[0] == '#') {
+			istringstream iss(line.substr(1));
+			string a, b, tmp;
+			float scale;
+			iss >> a >> b >> scale;
+			if (!iss || iss >> tmp) {
+				cout << "Invalid syntax. Usage: # word1 word2 scale" << endl;
+				cout << "Try e.g.: # olympus kodak 0.1" << endl;
+				continue;
+			}
+			if (!engine.wordExists(a)) {
+				cout << "unknown word " << a << endl;
+				continue;
+			}
+			if (!engine.wordExists(b)) {
+				cout << "unknown word " << b << endl;
+				continue;
+			}
+			vector<float>& vec1 = const_cast<vector<float>&>(engine.getVector(dict.getID(a)));
+			const vector<float>& vec2 = engine.getVector(dict.getID(b));
+			int dim = engine.dimension();
+			float origNorm = 0, newNorm = 0;
+			rep(i, 0, dim) {
+				origNorm += vec1[i] * vec1[i];
+				if ((vec1[i] > 0) == (vec2[i] > 0))
+					vec1[i] *= scale;
+				newNorm += vec1[i] * vec1[i];
+			}
+			scale = sqrt(origNorm / newNorm);
+			rep(i, 0, dim) {
+				vec1[i] *= scale;
+			}
+			line = a;
+		}
 		if (i == string::npos) {
 			if (!eval(engine, dict, line, &vec))
 				continue;
@@ -159,8 +201,12 @@ int main() {
 			auto v = engine.similarWords(vec);
 			if (engine.wordExists(line)) {
 				double norm = engine.getNorm(dict.getID(line));
-				cout << "Norm: " << norm << endl;
+				cout << "Original norm: " << norm << ", ";
 			}
+			if (abs(calcNorm(vec) - 1) > 1e-2) {
+				cout << "Expression norm: " << calcNorm(vec) << ", ";
+			}
+			cout << "Max component: " << max << endl;
 			cout << "Similar to:";
 			for (auto pa : v) {
 				cout << ' ' << pa.second << " (" << setprecision(3) << pa.first << ")";

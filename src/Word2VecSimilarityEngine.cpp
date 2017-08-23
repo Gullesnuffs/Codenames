@@ -24,7 +24,7 @@ float Word2VecSimilarityEngine::stat(wordID s) {
 	return wordNorms[s];
 }
 
-vector<float> Word2VecSimilarityEngine::getVector(wordID s) {
+const vector<float>& Word2VecSimilarityEngine::getVector(wordID s) {
 	return words[s];
 }
 
