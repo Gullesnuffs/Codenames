@@ -129,6 +129,13 @@ float calcNorm(const vector<float>& vec) {
 	return sqrt(ret);
 }
 
+string COLOR_RED = "\033[31m";
+string COLOR_GREEN = "\033[32m";
+string COLOR_BLUE = "\033[34m";
+string COLOR_YELLOW = "\033[33m";
+string COLOR_CYAN = "\033[36m";
+string RESET = "\033[0m";
+
 int main() {
 	Dictionary dict;
 	Word2VecSimilarityEngine engine(dict);
@@ -136,8 +143,9 @@ int main() {
 	const int dim = engine.dimension();
 	for (;;) {
 		string line;
-		cout << "> ";
+		cout << "> " << COLOR_GREEN;
 		getline(cin, line);
+		cout << RESET;
 		if (!cin)
 			break;
 		if (line.empty())
@@ -150,16 +158,16 @@ int main() {
 			float scale;
 			iss >> a >> b >> scale;
 			if (!iss || iss >> tmp) {
-				cout << "Invalid syntax. Usage: # word1 word2 scale" << endl;
-				cout << "Try e.g.: # olympus kodak 0.1" << endl;
+				cout << COLOR_RED << "Invalid syntax. Usage: # word1 word2 scale" << endl;
+				cout << "Try e.g.: # olympus kodak 0.1" << RESET << endl;
 				continue;
 			}
 			if (!engine.wordExists(a)) {
-				cout << "unknown word " << a << endl;
+				cout << COLOR_RED << "unknown word " << a << RESET << endl;
 				continue;
 			}
 			if (!engine.wordExists(b)) {
-				cout << "unknown word " << b << endl;
+				cout << COLOR_RED << "unknown word " << b << RESET << endl;
 				continue;
 			}
 			vector<float>& vec1 = const_cast<vector<float>&>(engine.getVector(dict.getID(a)));
@@ -201,15 +209,15 @@ int main() {
 			auto v = engine.similarWords(vec);
 			if (engine.wordExists(line)) {
 				double norm = engine.getNorm(dict.getID(line));
-				cout << "Original norm: " << norm << ", ";
+				cout << COLOR_YELLOW << "Original norm: " << RESET << norm << ", ";
 			}
 			if (abs(calcNorm(vec) - 1) > 1e-2) {
-				cout << "Expression norm: " << calcNorm(vec) << ", ";
+				cout << COLOR_YELLOW << "Expression norm: " << RESET << calcNorm(vec) << ", ";
 			}
-			cout << "Max component: " << max << endl;
+			cout << COLOR_YELLOW << "Max component: " << RESET << max << endl;
 			cout << "Similar to:";
 			for (auto pa : v) {
-				cout << ' ' << pa.second << " (" << setprecision(3) << pa.first << ")";
+				cout << ' ' << COLOR_YELLOW << pa.second << RESET << " (" << setprecision(3) << pa.first << ")";
 			}
 			cout << endl;
 			// cout << " (" << v.front().first << " ... " << v.back().first << ")" << endl;
@@ -222,7 +230,7 @@ int main() {
 				continue;
 			float sum = 0;
 			rep(i, 0, dim) sum += vec1[i] * vec2[i];
-			cout << "Similarity: " << sum << endl;
+			cout << COLOR_GREEN << "Similarity: " << sum << RESET << endl;
 		}
 	}
 }
