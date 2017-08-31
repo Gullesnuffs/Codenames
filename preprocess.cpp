@@ -85,7 +85,7 @@ void processWord2Vec(const char* inFile, const char* popFile, const char* outFil
 		fin.close();
 	}
 	else {
-		cerr << "Warning: missing wordlist.txt, so unable to ensure all words from there are available." << endl;
+		cerr << "Warning: missing " << wordlistFile << ", so unable to ensure all words from there are available." << endl;
 	}
 
 	int popcount = 0; // (sorry)
@@ -181,8 +181,8 @@ void processWord2Vec(const char* inFile, const char* popFile, const char* outFil
 }
 
 int main(int argc, char **argv) {
-	if (argc != 5) {
-		cerr << "Usage: " << argv[0] << " <word2vec .txt file> <popularity .txt file> <model id> <limit>" << endl;
+	if (argc != 6) {
+		cerr << "Usage: " << argv[0] << " <word2vec .txt file> <popularity .txt file> <model id> <limit> <outfile.bin>" << endl;
 		cerr << endl;
 		cerr << "* The word2vec file should be a list of lines of the form \"word a_1 a_2 ... a_k\"," << endl;
 		cerr << " where k is the dimension of the word2vec embedding, a_i are real numbers in decimal form," << endl;
@@ -205,5 +205,6 @@ int main(int argc, char **argv) {
 	const char* popFile = argv[2];
 	int modelid = atoi(argv[3]);
 	int limit = atoi(argv[4]);
-	processWord2Vec(inFile, popFile, "data.bin", "wordlist.txt", modelid, limit);
+	const char* outFile = argv[5];
+	processWord2Vec(inFile, popFile, outFile, "wordlist.txt", modelid, limit);
 }
