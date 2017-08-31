@@ -329,6 +329,7 @@ float kendallRankCoefficient(vector<int> indices) {
 }
 
 struct Feature {
+	wordID word;
 	double conceptnetSimilarity;
 	double conceptnetNorm;
 	vector<float> conceptnetVector;
@@ -395,6 +396,8 @@ void extractFeatures(string trainFileName, string testFileName) {
 		testFile.open(testFileName);
 	}
 
+	vector<pair<float, pair<wordID, pair<Feature, Feature>>>> worst;
+	vector<float> weights = { 1.00002456, 0.25750649, 0.1286284,  0.22448137 };
 	string line;
 	while (getline(cin, line)) {
 		bool trainSet = (deterministicRand() % 10 < 8);  // Use 80% of data for training
@@ -419,27 +422,61 @@ void extractFeatures(string trainFileName, string testFileName) {
 			if (s == ":") {
 				skipped = true;
 			} else if (conceptnetEngine.wordExists(s) && gloveEngine.wordExists(s)) {
+				if (query == "well" || s == "well") continue;
+
 				wordID wordID = dict.getID(s);
 				Feature f;
+				f.word = wordID;
 				f.conceptnetNorm = conceptnetEngine.stat(wordID);
-				f.conceptnetVector = conceptnetEngine.getVector(wordID);
-				f.clueConceptnetVector = conceptnetEngine.getVector(queryID);
+				//f.conceptnetVector = conceptnetEngine.getVector(wordID);
+				//f.clueConceptnetVector = conceptnetEngine.getVector(queryID);
 				
 				f.gloveNorm = gloveEngine.stat(wordID);
-				f.gloveVector = gloveEngine.getVector(wordID);
+				//f.gloveVector = gloveEngine.getVector(wordID);
 				f.clueGloveNorm = gloveEngine.stat(queryID);
-				f.clueGloveVector = gloveEngine.getVector(queryID);
+				//f.clueGloveVector = gloveEngine.getVector(queryID);
 				
 				f.additionalParams.push_back(conceptnetEngine.similarity(queryID, wordID));
 				f.additionalParams.push_back(gloveEngine.similarity(queryID, wordID));
 				f.additionalParams.push_back(wikisaurus.similarity(queryID, wordID));
-				f.additionalParams.push_back(cluster.similarity(queryID, wordID));
-				f.additionalParams.push_back(randSimilarity.similarity(queryID, wordID));
+				f.additionalParams.push_back(pow(cluster.similarity(queryID, wordID), 0.1));
+				f.additionalParams.push_back(max(wikisaurus.similarity(queryID, wordID), max(conceptnetEngine.similarity(queryID, wordID), gloveEngine.similarity(queryID, wordID))));
+
+				f.additionalParams.push_back(0);
+				f.additionalParams.push_back(0);
 
 				auto& targetFile = trainSet ? trainFile : testFile;
 				for (auto& feature : features) {
+					float indirect = 0;
+					float indirect2 = 0;
+					for (auto& f2 : features) {
+						if (&feature != &f2) {
+							indirect += conceptnetEngine.commutativeSimilarity(f2.word, feature.word);
+							indirect2 += conceptnetEngine.commutativeSimilarity(queryID, f2.word) + conceptnetEngine.commutativeSimilarity(f2.word, feature.word);
+						}
+					}
+
+
+					float indirect_2 = 0;
+					float indirect2_2 = 0;
+					for (auto& f2 : features) {
+						if (&feature != &f2) {
+							indirect_2 += conceptnetEngine.commutativeSimilarity(f2.word, f.word);
+							indirect2_2 += conceptnetEngine.commutativeSimilarity(queryID, f2.word) + conceptnetEngine.commutativeSimilarity(f2.word, f.word);
+						}
+					}
+
+					feature.additionalParams[feature.additionalParams.size()-2] = indirect;
+					feature.additionalParams[feature.additionalParams.size()-1] = indirect2;
+
+					f.additionalParams[f.additionalParams.size()-2] = indirect_2;
+					f.additionalParams[f.additionalParams.size()-1] = indirect2_2;
+
+
+					//feature.additionalParams[feature.additionalParams.size()-1] = (rand() % 1000) < 1 ? 1 : 0;
 					feature.writeTo(targetFile);
 					f.writeTo(targetFile);
+
 					targetFile << endl;
 				}
 				if (!skipped) {
