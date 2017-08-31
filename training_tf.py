@@ -44,7 +44,6 @@ class Model:
 clueGloveNorm = tf.placeholder(tf.float32, [None, 1])
 
 similarityWeights = tf.get_variable("similarity_weights", [numSimilarities], dtype=tf.float32)
-gloveWeight = tf.Variable(0.00)
 deviationBase = tf.Variable(0.2)
 deviationNormCoeff = tf.Variable(0.0)
 deviationClueNormCoeff = tf.Variable(0.0)
@@ -84,17 +83,20 @@ def constructFeedDict(model1, feature1, model2, feature2):
           }
 
 
-for i in range(1000):
-  sess.run(train_step, feed_dict=constructFeedDict(model1, train1, model2, train2))
-  res = sess.run([cross_entropy, similarityWeights, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict=constructFeedDict(model1, test1, model2, test2))
-  lastAns = res[0]
-  # print(str(lastAns))
-  out_similarityWeights = res[1]
-  out_deviationBase = res[2]
-  out_deviationNormCoeff = res[3]
-  out_deviationClueNormCoeff = res[4]
+for i in range(500):
+  _, ce = sess.run([train_step, cross_entropy], feed_dict=constructFeedDict(model1, train1, model2, train2))
+  sys.stdout.write("\r" + str(i).ljust(8) + str(ce))
 
-print("Similarity Weights = " + str(out_similarityWeights))
+res = sess.run([cross_entropy, similarityWeights, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict=constructFeedDict(model1, test1, model2, test2))
+lastAns = res[0]
+# print(str(lastAns))
+out_similarityWeights = res[1]
+out_deviationBase = res[2]
+out_deviationNormCoeff = res[3]
+out_deviationClueNormCoeff = res[4]
+
+print()
+print("Similarity Weights = " + "  ".join(["{0:.2f}".format(x) for x in out_similarityWeights]))
 print("deviationBase = " + str(out_deviationBase))
 print("deviationNormCoeff = " + str(out_deviationNormCoeff))
 print("deviationClueNormCoeff = " + str(out_deviationClueNormCoeff))
