@@ -11,5 +11,8 @@ codenames: $(H) $(COMMON_CPP) src/codenames.cpp
 calc: $(H) $(COMMON_CPP) src/calc.cpp
 	g++ -o calc $(FLAGS) $(COMMON_CPP) src/calc.cpp
 
+preprocess: preprocess.cpp
+	g++ -o preprocess $(FLAGS) preprocess.cpp
+
 format:
 	clang-format -style=file -i src/*.cpp $(H)
