@@ -42,7 +42,7 @@ class GameInterface {
 	GameInterface(Dictionary &dict, SimilarityEngine &engine,
 				  InappropriateEngine &inappropriateEngine)
 		: dict(dict), engine(engine) {
-			bot = std::unique_ptr<ProbabilityBot>(new ProbabilityBot(dict, engine, inappropriateEngine));
+			bot = std::unique_ptr<FuzzyBot>(new FuzzyBot(dict, engine, inappropriateEngine));
 		}
 
 	void run();

@@ -36,7 +36,7 @@ float ProbabilityBot::getWordScore(wordID word) {
 			value = 1;
 		}
 
-		float weight = exp(5*sim);
+		float weight = exp(3*sim);
 		totalWeight += weight;
 		totalScore += weight * value;
 	}
@@ -66,13 +66,13 @@ float ProbabilityBot::getWordScore(wordID word) {
 float ProbabilityBot::getProbabilityScore(wordID word, int number) {
 	vector<float> score(boardWords.size());
 	for(int i = 0; i < boardWords.size(); i++) {
-		score[i] = engine.similarity(boardWords[i].id, word);
+		score[i] = engine.similarity(boardWords[i].id, word) - 0.15;
 	}
 	vector<float> scoreWithNoise(boardWords.size());
 	int simulations = 1000;
 	double totScore = 0;
 	vector<bool> remaining(boardWords.size());
-	normal_distribution<double> distribution(0.0, 0.24 * 0.2);
+	normal_distribution<double> distribution(0.0, 0.24 * 0.5);
 	uniform_real_distribution<double> distribution01(0.0, 1.0);
 	default_random_engine generator;
 

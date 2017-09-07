@@ -5,6 +5,7 @@
 #include "SimilarityEngine.h"
 #include "Utilities.h"
 #include "Word2VecSimilarityEngine.h"
+#include "Word2GMSimilarityEngine.h"
 #include "EdgeListSimilarityEngine.h"
 #include "MixingSimilarityEngine.h"
 #include "RandomSimilarityEngine.h"
@@ -71,16 +72,18 @@ void batchMain() {
 			engine = "models/conceptnet.bin";
 		else if (engine == "conceptnet-swe")
 			engine = "models/conceptnet-swedish.bin";
+		else if (engine == "word2gm")
+			engine = "models/word2gm.bin";
 		else
 			fail("Invalid engine parameter.");
 
 		Dictionary dict;
-		Word2VecSimilarityEngine word2vecEngine(dict);
+		Word2GMSimilarityEngine word2vecEngine(dict);
 		if (!word2vecEngine.load(engine, false))
 			fail("Unable to load similarity engine.");
 
 		InappropriateEngine inappropriateEngine("inappropriate.txt", dict);
-		ProbabilityBot bot(dict, word2vecEngine, inappropriateEngine);
+		FuzzyBot bot(dict, word2vecEngine, inappropriateEngine);
 
 		char color;
 		cin >> color;
@@ -854,8 +857,8 @@ int main(int argc, char **argv) {
 	}
 
 	Dictionary dict;
-	Word2VecSimilarityEngine word2vecEngine(dict);
-	if (!word2vecEngine.load("data.bin", true)) {
+	Word2GMSimilarityEngine word2vecEngine(dict);
+	if (!word2vecEngine.load("models/word2gm.bin", true)) {
 		cerr << "Failed to load data.bin" << endl;
 		return 1;
 	}

@@ -74,13 +74,31 @@ double parseDouble(const string& str) {
 	return res;
 }
 
+string tolower(string s){
+	string ret;
+	for(auto c : s){
+		if(c >= 'A' && c <= 'Z')
+			ret.push_back(c + 'a' - 'A');
+		else
+			ret.push_back(c);
+	}
+	return ret;
+}
+
+string capitalize(string s){
+	if(s[0] >= 'a' && s[0] <= 'z')
+		s[0] += 'A' - 'a';
+	return s;
+}
+
 void processWord2Vec(const char* inFile, const char* popFile, const char* outFile, const char* wordlistFile, int modelid, int limit) {
 	string line;
 	set<string> wordlist;
 	ifstream fin(wordlistFile);
 	if (fin) {
 		while (getline(fin, line)) {
-			wordlist.insert(line);
+			wordlist.insert(tolower(line));
+			wordlist.insert(capitalize(tolower(line)));
 		}
 		fin.close();
 	}

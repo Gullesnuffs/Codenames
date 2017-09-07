@@ -281,7 +281,7 @@ vector<Bot::Result> FuzzyBot::findBestWords(int count) {
 		}
 	}
 
-	bool usePlanning = (myWordsFound && myWordsFound <= 9);
+	bool usePlanning = false;
 	vector<int> minMovesNeeded;
 	vector<float> bestScore;
 	vector<float> bestClueScore;
