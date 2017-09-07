@@ -83,6 +83,8 @@ def constructFeedDict(model1, feature1, model2, feature2):
           }
 
 
+res = sess.run([scoreDiff, cross_entropy, similarityWeights, deviationBase, deviationNormCoeff, deviationClueNormCoeff], feed_dict=constructFeedDict(model1, test1, model2, test2))
+print(res)
 for i in range(500):
   _, ce = sess.run([train_step, cross_entropy], feed_dict=constructFeedDict(model1, train1, model2, train2))
   sys.stdout.write("\r" + str(i).ljust(8) + str(ce))

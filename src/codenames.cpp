@@ -382,13 +382,17 @@ void extractFeatures(string trainFileName, string testFileName) {
 	if (!gloveEngine.load("models/glove.840B.330d.bin", false))
 		cerr << "Unable to load similarity engine.";
 
+	Word2GMSimilarityEngine word2GMEngine(dict);
+	if (!word2GMEngine.load("models/word2gm.bin", false))
+		cerr << "Unable to load similarity engine.";
+
 	EdgeListSimilarityEngine wikisaurus(dict);
 	if (!wikisaurus.load("generated_data/wikisaurus_edges.txt", false))
 		cerr << "Unable to load wikisaurus similarity engine.";
 
-	EdgeListSimilarityEngine cluster(dict);
+	/*EdgeListSimilarityEngine cluster(dict);
 	if (!cluster.load("generated_data/cluster_edges.txt", false))
-		cerr << "Unable to load cluster similarity engine.";
+		cerr << "Unable to load cluster similarity engine.";*/
 
 	RandomSimilarityEngine randSimilarity;
 
@@ -442,7 +446,8 @@ void extractFeatures(string trainFileName, string testFileName) {
 				f.additionalParams.push_back(conceptnetEngine.similarity(queryID, wordID));
 				f.additionalParams.push_back(gloveEngine.similarity(queryID, wordID));
 				f.additionalParams.push_back(wikisaurus.similarity(queryID, wordID));
-				f.additionalParams.push_back(pow(cluster.similarity(queryID, wordID), 0.1));
+				f.additionalParams.push_back(word2GMEngine.similarity(queryID, wordID));
+				//f.additionalParams.push_back(pow(cluster.similarity(queryID, wordID), 0.1));
 				f.additionalParams.push_back(max(wikisaurus.similarity(queryID, wordID), max(conceptnetEngine.similarity(queryID, wordID), gloveEngine.similarity(queryID, wordID))));
 
 				f.additionalParams.push_back(0);

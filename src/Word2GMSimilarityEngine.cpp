@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <cassert>
 
 #define rep(i, a, b) for (int i = (a); i < int(b); ++i)
 #define all(v) (v).begin(), (v).end()
@@ -26,6 +27,8 @@ float Word2GMSimilarityEngine::similarity(const WordEmbedding &v1, const WordEmb
 			//sim = max(sim, (float)(-0.5 + 1.5 / (1.0 + 0.8 * dis * dis)));
 		}
 	}
+	if(!cnt)
+		return 0;
 	float mean = cbrt(cnt/sum) - 0.1;
 	return -0.5 + 1.5 / (1.0 + 0.25 * mean * mean);
 	//return sim;
@@ -38,7 +41,6 @@ float Word2GMSimilarityEngine::stat(wordID s) {
 
 /** Returns true if successful */
 bool Word2GMSimilarityEngine::load(const string &fileName, bool verbose) {
-	cerr << "Load " << fileName << endl;
 	int dimension, numberOfWords;
 	modelid = formatVersion = 0;
 	ifstream fin(fileName, ios::binary);
