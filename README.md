@@ -102,3 +102,6 @@ TODO. (Probably MIT or something?)
 `models/glove.840B.330d.bin` is from https://nlp.stanford.edu/projects/glove/, available under [Public Domain Dedication and License](https://opendatacommons.org/licenses/pddl/1.0/).
 
 `models/conceptnet.bin` is from https://github.com/commonsense/conceptnet-numberbatch, available under [CC-By-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
+`models/word2gm.bin` is from https://github.com/benathi/word2gm, available under [BSD 3-Clause license](https://opensource.org/licenses/BSD-3-Clause).
+
