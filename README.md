@@ -5,7 +5,7 @@ To use this program, you need to do the following:
 
 1. Download the C++ source.
 
-2. Compile it using (for instance) `g++ -std=c++11 -Ofast -march=native codenames.cpp -o codenames`
+2. Compile it using `make`.
 
 3. Take any binary word2vec-like model from `models/` and copy it to `data.bin`.
    Alternatively, download one in text format from e.g. http://nlp.stanford.edu/projects/glove/ (glove.840B.300d works well), and convert it to binary format using `preprocess.cpp`.
