@@ -172,7 +172,7 @@ void batchMain() {
 		numResults = min(numResults, 1000000);
 		vector<Bot::Result> results = bot.findBestWords(firstResult + numResults);
 
-		if (firstResult >= (int)results.size()) {
+		if (firstResult >= results.size()) {
 			cout << "{\"status\": 3, \"message\": \"No more clues.\"}";
 			return;
 		}
@@ -191,8 +191,8 @@ void batchMain() {
 			abort();
 		};
 
-		auto printClue = [&](int index) {
-			assert(0 <= index && index < (int)results.size());
+		auto printClue = [&](size_t index) {
+			assert(0 <= index && index < results.size());
 			string w = results[index].word;
 			int count = results[index].number;
 			cout << "  {\"word\": \"" << escapeJSON(denormalize(w)) << "\", ";
@@ -299,8 +299,8 @@ void simMain2() {
 			}
 		}
 
-		for (int i = 0; i < (int)picked.size(); i++) {
-			for (int j = i + 1; j < (int)all.size(); j++) {
+		for (size_t i = 0; i < picked.size(); i++) {
+			for (size_t j = i + 1; j < all.size(); j++) {
 				float s1 = word2vecEngine.similarity(dict.getID(query), dict.getID(picked[i]));
 				float s2 = word2vecEngine.similarity(dict.getID(query), dict.getID(all[j]));
 				cout << min(s1, s2) << " " << max(s1, s2) << " " << (s1 < s2 ? 1 : 0) << endl;
@@ -319,8 +319,8 @@ int sign(int v) {
 float kendallRankCoefficient(vector<int> indices) {
 	float numerator = 0;
 	int differingPairs = 0;
-	for (int i = 0; i < (int)indices.size(); i++) {
-		for (int j = 0; j < i; j++) {
+	for (size_t i = 0; i < indices.size(); i++) {
+		for (size_t j = 0; j < i; j++) {
 			int v = sign(indices[i] - indices[j]);
 			if (v != 0) {
 				numerator += v;
@@ -511,18 +511,18 @@ void optimizeSimilarity() {
 
 	auto words = dict.getCommonWords(10000);
 	vector<float> totalSimilarities(words.size());
-	for (int i = 1000; i < words.size(); i++) {
+	for (size_t i = 1000; i < words.size(); i++) {
 		float totalSimilarity = 0;
-		for (int j = 1000; j < words.size(); j++) {
+		for (size_t j = 1000; j < words.size(); j++) {
 			if (i != j) totalSimilarity += word2vecEngine->similarity(words[j], words[i]);
 		}
 		totalSimilarities[i] = totalSimilarity;
 	}
 
 	vector<pair<float, pair<wordID, wordID>>> scores;
-	for (int i = 1000; i < words.size(); i++) {
+	for (size_t i = 1000; i < words.size(); i++) {
 		vector<int> close;
-		for (int j = 1000; j < words.size(); j++) {
+		for (size_t j = 1000; j < words.size(); j++) {
 			float sim = word2vecEngine->similarity(words[i], words[j]);
 			if (i != j && sim > 0.4) {
 				close.push_back(j);
@@ -532,9 +532,9 @@ void optimizeSimilarity() {
 		//cout << "\r" << i << "/" << words.size() << ": " << close.size();
 		//cout.flush();
 
-		for (int j = 0; j < close.size(); j++) {
+		for (size_t j = 0; j < close.size(); j++) {
 			float sum = 0;
-			for (int q = 0; q < close.size(); q++) {
+			for (size_t q = 0; q < close.size(); q++) {
 				if (q != j) sum += word2vecEngine->similarity(words[close[q]], words[i]) * word2vecEngine->similarity(words[close[q]], words[close[j]]) / (totalSimilarities[i] + totalSimilarities[close[j]]);
 			}
 
@@ -543,7 +543,7 @@ void optimizeSimilarity() {
 	}
 
 	sort(scores.rbegin(), scores.rend());
-	for (int i = 0; i < 30000; i++) {
+	for (size_t i = 0; i < 30000; i++) {
 		auto item = scores[i];
 		cout << '"' << dict.getWord(item.second.first) << "\" - \"" << dict.getWord(item.second.second) << "\";" << endl;
 		//cout << dict.getWord(item.second.first) << " " << dict.getWord(item.second.second) << " " << item.first << " " << word2vecEngine->similarity(item.second.second, item.second.first) << endl;
@@ -714,7 +714,7 @@ void serverMain() {
 				continue;
 		}
 		vector<string> subset;
-		for (int i = 0; i < 5; i++) {
+		for (size_t i = 0; i < 5; i++) {
 			// Range from -0.2 to 1.2
 			float targetSimilarity = rand() / (float)RAND_MAX;
 			targetSimilarity = -0.2f + targetSimilarity * 1.4;
@@ -759,7 +759,7 @@ void serverMain() {
 
 		cout << COLOR_GREEN << query << RESET << endl;
 		random_shuffle(subset.begin(), subset.end());
-		for (int i = 0; i < (int)subset.size(); i++) {
+		for (size_t i = 0; i < subset.size(); i++) {
 			cout << COLOR_GREEN << (i + 1) << RESET << ": " << subset[i];
 			// cout << " " << word2vecEngine.similarity(dict.getID(query),
 			// dict.getID(subset[i]));
@@ -793,10 +793,10 @@ void serverMain() {
 			}
 
 			stringstream ss(line);
-			int itemIndex;
+			size_t itemIndex;
 			vector<string> picked;
 			while (ss >> itemIndex) {
-				if (itemIndex < 1 || itemIndex > (int)subset.size()) {
+				if (itemIndex < 1 || itemIndex > subset.size()) {
 					cout << COLOR_RED << "Index out of range" << RESET << endl;
 					worked = false;
 					break;
