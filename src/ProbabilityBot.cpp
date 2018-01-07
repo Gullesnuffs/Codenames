@@ -65,32 +65,32 @@ float ProbabilityBot::getWordScore(wordID word) {
 
 float ProbabilityBot::getProbabilityScore(wordID word, int number) {
 	vector<float> score(boardWords.size());
-	for(int i = 0; i < boardWords.size(); i++) {
+	for(size_t i = 0; i < boardWords.size(); i++) {
 		score[i] = engine.similarity(boardWords[i].id, word) - 0.15;
 	}
 	vector<float> scoreWithNoise(boardWords.size());
-	int simulations = 1000;
+	size_t simulations = 1000;
 	double totScore = 0;
 	vector<bool> remaining(boardWords.size());
 	normal_distribution<double> distribution(0.0, 0.24 * 0.5);
 	uniform_real_distribution<double> distribution01(0.0, 1.0);
 	default_random_engine generator;
 
-	for (int i = 0; i < simulations; i++) {
-		for (int j = 0; j < boardWords.size(); j++) {
+	for (size_t i = 0; i < simulations; i++) {
+		for (size_t j = 0; j < boardWords.size(); j++) {
 			double p = (2-score[j]) * score[j] + 0.05;
 			remaining[j] = p >= distribution01(generator);
 			//remaining[j] = true;
 		}
 		//cerr << "Simulation " << (i+1) << endl;
-		for (int j = 0; j < boardWords.size(); j++) {
+		for (size_t j = 0; j < boardWords.size(); j++) {
 			scoreWithNoise[j] = score[j] + distribution(generator);
 			//cerr << boardWords[j].word << " " << score[j] << " " << scoreWithNoise[j] << endl;
 		}
 		double simulationScore = 0;
 		for (int j = 0; j < number; j++) {
 			int chosen = -1;
-			for (int k = 0; k < boardWords.size(); k++) {
+			for (size_t k = 0; k < boardWords.size(); k++) {
 				if (remaining[k]) {
 					if (chosen == -1 || scoreWithNoise[k] > scoreWithNoise[chosen]) {
 						chosen = k;
@@ -161,7 +161,7 @@ vector<Bot::Result> ProbabilityBot::findBestWords(int count) {
 	sort(simulationScores.rbegin(), simulationScores.rend());
 
 	vector<Bot::Result> results;
-	for (int i = 0; i < 10; i++) {
+	for (size_t i = 0; i < 10; i++) {
 		auto item = simulationScores[i];
 		Result result;
 		result.word = dict.getWord(item.second);
